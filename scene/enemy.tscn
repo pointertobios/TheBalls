@@ -1,0 +1,97 @@
+[gd_scene load_steps=16 format=3 uid="uid://be6kqpime2c1a"]
+
+[ext_resource type="Script" uid="uid://b4rusbsmjgghf" path="res://src/enemy.gd" id="1_8u16h"]
+[ext_resource type="Shader" uid="uid://dhefrcxqbq4vq" path="res://shader/enemy.gdshader" id="2_f87vc"]
+[ext_resource type="Texture2D" uid="uid://div7dbt54k8ky" path="res://asset/enemy_taile .png" id="3_yvcfn"]
+[ext_resource type="Script" uid="uid://berhf6k2q428o" path="res://src/die.gd" id="4_b7koy"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_b7koy"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fvtld"]
+render_priority = 0
+shader = ExtResource("2_f87vc")
+
+[sub_resource type="SphereMesh" id="SphereMesh_yvcfn"]
+material = SubResource("ShaderMaterial_fvtld")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_b7koy"]
+resource_local_to_scene = true
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_yvcfn"]
+load_path = "res://.godot/imported/enemy_taile .png-64a09b27bf7b7fb9443a782b6ce8ccf7.s3tc.ctex"
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ulb22"]
+transparency = 1
+cull_mode = 2
+albedo_texture = SubResource("CompressedTexture2D_yvcfn")
+billboard_mode = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_1e552"]
+material = SubResource("StandardMaterial3D_ulb22")
+size = Vector2(2, 2)
+
+[sub_resource type="GDScript" id="GDScript_ulb22"]
+script/source = "extends GPUParticles3D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	local_coords = false
+	print(process_material)
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func set_emission_direction(direction: Vector3) -> void:
+	# 获取 process_material
+	var material = self.process_material
+	if material:
+		# 设置粒子的发射方向
+		material.direction = direction.normalized()
+		material.spread = 5
+		# 设置粒子的初始速度
+		material.initial_velocity_min = 15  # 最小初始速度
+		material.initial_velocity_max = 15  # 最大初始速度
+"
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_yvcfn"]
+emission_shape = 1
+emission_sphere_radius = 0.1
+initial_velocity_max = 10.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1e552"]
+transparency = 1
+cull_mode = 1
+albedo_texture = ExtResource("3_yvcfn")
+
+[sub_resource type="SphereMesh" id="SphereMesh_ulb22"]
+material = SubResource("StandardMaterial3D_1e552")
+radius = 0.3
+height = 0.6
+
+[node name="Enemy" type="CharacterBody3D"]
+script = ExtResource("1_8u16h")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_b7koy")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_yvcfn")
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="."]
+amount = 60
+lifetime = 2.0
+speed_scale = 3.0
+process_material = SubResource("ParticleProcessMaterial_b7koy")
+draw_pass_1 = SubResource("QuadMesh_1e552")
+script = SubResource("GDScript_ulb22")
+
+[node name="Die" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 200
+lifetime = 0.4
+one_shot = true
+process_material = SubResource("ParticleProcessMaterial_yvcfn")
+draw_pass_1 = SubResource("SphereMesh_ulb22")
+script = ExtResource("4_b7koy")

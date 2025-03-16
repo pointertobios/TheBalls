@@ -13,6 +13,8 @@ var v: float = 0
 var yzoom: float = 1
 var kinet_loss: float = 0.8
 var velo_max: float = 12
+var charge_acc: float = 10
+var fast_jump: bool
 
 func _init(
 	g: float,
@@ -30,9 +32,12 @@ func set_velocity(v: float) -> void:
 	self.v = v
 
 func update(delta: float):
+	var tv = v
 	v -= gravity * delta
 	y += v * delta
 	v *= 0.9998
+	if y > ballradius and tv * v < 0 and tv > 0:
+		fast_jump = false
 
 	if y <= ballradius:
 		if not charging:
@@ -47,8 +52,13 @@ func update(delta: float):
 			if charging_keep:
 				if y <= limr:
 					y = limr
-				if v < -velo_max:
-					v = -velo_max
+				if fast_jump:
+					v -= 499 * gravity * delta
+					if v < -velo_max * 50:
+						v = -velo_max * 50
+				else:
+					if v < -velo_max:
+						v = -velo_max
 			elif y <= limr:
 				y = limr
 				v = -v
@@ -58,9 +68,9 @@ func update(delta: float):
 				charging = false
 	elif charging:
 		var t = v
-		v -= kinet_loss
-		if t >= -velo_max and v < -velo_max:
-			v = -velo_max
+		v -= charge_acc
+		if t >= -velo_max * 2 and v < -velo_max * 2:
+			v = -velo_max * 2
 
 	yzoom = y / ballradius
 	if yzoom > 1:
@@ -69,6 +79,8 @@ func update(delta: float):
 func charge():
 	charging_keep = true
 	charging = true
+	if at_floor():
+		fast_jump = true
 
 func release():
 	charging_keep = false

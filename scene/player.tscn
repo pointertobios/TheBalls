@@ -1,8 +1,63 @@
-[gd_scene load_steps=3 format=3 uid="uid://b74hbui2nt53"]
+[gd_scene load_steps=18 format=3 uid="uid://b74hbui2nt53"]
+
+[ext_resource type="Shader" uid="uid://bw3wo58xyf454" path="res://shader/player.gdshader" id="1_hjaqi"]
+[ext_resource type="Texture2D" uid="uid://f1402jy1tp7a" path="res://asset/tail.png" id="2_fvtld"]
+[ext_resource type="Script" uid="uid://byhg7pq2ks702" path="res://src/player_particle.gd" id="2_hjaqi"]
+[ext_resource type="Script" uid="uid://5yrfd1s4ejo1" path="res://src/hit.gd" id="4_ct4mp"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_sh265"]
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hjaqi"]
+render_priority = 0
+shader = ExtResource("1_hjaqi")
+
 [sub_resource type="SphereMesh" id="SphereMesh_sh265"]
+material = SubResource("ShaderMaterial_hjaqi")
+
+[sub_resource type="Curve" id="Curve_fvtld"]
+_data = [Vector2(0, 1), 0.0, -3.37891, 0, 0, Vector2(0.987629, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_ct4mp"]
+curve = SubResource("Curve_fvtld")
+
+[sub_resource type="Curve" id="Curve_ct4mp"]
+_limits = [-200.0, 200.0, 0.0, 1.0]
+_data = [Vector2(0, 200), 0.0, 0.0, 0, 0, Vector2(1, -200), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_s4jxa"]
+curve = SubResource("Curve_ct4mp")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_xo3ru"]
+gravity = Vector3(0, 0, 0)
+radial_accel_curve = SubResource("CurveTexture_s4jxa")
+alpha_curve = SubResource("CurveTexture_ct4mp")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fvtld"]
+transparency = 1
+blend_mode = 1
+albedo_texture = ExtResource("2_fvtld")
+emission_enabled = true
+emission = Color(1, 1, 1, 1)
+backlight_enabled = true
+backlight = Color(0.97975, 0.963422, 0.955279, 1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_ct4mp"]
+material = SubResource("StandardMaterial3D_fvtld")
+size = Vector2(0.5, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s4jxa"]
+albedo_color = Color(0, 1, 1, 1)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_oh5ij"]
+emission_shape = 1
+emission_sphere_radius = 0.1
+initial_velocity_max = 10.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_hp4bs"]
+radius = 0.07
+height = 0.21
 
 [node name="Player" type="CharacterBody3D"]
 
@@ -10,10 +65,30 @@
 shape = SubResource("CylinderShape3D_sh265")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 4, 5.656, 4)
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 10, 14.142, 10)
 
 [node name="RayCast3D" type="RayCast3D" parent="Camera3D"]
 target_position = Vector3(0, -1, -1000)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 0, 0, 0)
 mesh = SubResource("SphereMesh_sh265")
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="MeshInstance3D"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0, 0, 0)
+amount = 300
+lifetime = 0.5
+randomness = 0.37
+process_material = SubResource("ParticleProcessMaterial_xo3ru")
+draw_pass_1 = SubResource("QuadMesh_ct4mp")
+script = ExtResource("2_hjaqi")
+
+[node name="Hit" type="GPUParticles3D" parent="."]
+material_override = SubResource("StandardMaterial3D_s4jxa")
+emitting = false
+amount = 200
+lifetime = 0.4
+one_shot = true
+process_material = SubResource("ParticleProcessMaterial_oh5ij")
+draw_pass_1 = SubResource("SphereMesh_hp4bs")
+script = ExtResource("4_ct4mp")

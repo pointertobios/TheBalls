@@ -1,12 +1,65 @@
-[gd_scene load_steps=4 format=3 uid="uid://p7wu2frvs35v"]
+[gd_scene load_steps=17 format=3 uid="uid://p7wu2frvs35v"]
 
 [ext_resource type="PackedScene" uid="uid://b74hbui2nt53" path="res://scene/player.tscn" id="1_dbls1"]
-[ext_resource type="Script" uid="uid://dcsi57no0a58s" path="res://src/player.gd" id="2_33cqm"]
+[ext_resource type="Script" uid="uid://227sl5v14rvj" path="res://src/game.gd" id="1_xlg7c"]
+[ext_resource type="Script" uid="uid://6c037w7cjwk8" path="res://src/player.gd" id="2_33cqm"]
+[ext_resource type="Script" uid="uid://dsnnqi17d7w0x" path="res://src/score_board.gd" id="4_xwcet"]
+[ext_resource type="Script" uid="uid://d0rb0234n3vsh" path="res://src/score.gd" id="5_p1ry8"]
+[ext_resource type="Texture2D" uid="uid://batgh3hym3pp2" path="res://asset/skybox.jpeg" id="6_xlg7c"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_p1ry8"]
+albedo_color = Color(0.399474, 0.771372, 0.537623, 1)
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_mwb40"]
+material = SubResource("StandardMaterial3D_p1ry8")
 size = Vector2(100, 100)
 
+[sub_resource type="FontFile" id="FontFile_p1ry8"]
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_qpk70"]
+panorama = ExtResource("6_xlg7c")
+
+[sub_resource type="Sky" id="Sky_ll5lq"]
+sky_material = SubResource("PanoramaSkyMaterial_qpk70")
+
+[sub_resource type="Environment" id="Environment_17rxn"]
+background_mode = 2
+sky = SubResource("Sky_ll5lq")
+
+[sub_resource type="FontFile" id="FontFile_xlg7c"]
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="Theme" id="Theme_qpk70"]
+default_font = SubResource("FontFile_xlg7c")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xlg7c"]
+bg_color = Color(0.385565, 0.634752, 0.372688, 1)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.414272, 0.884061, 0.912236, 1)
+shadow_color = Color(0.610497, 0.788772, 0.801758, 0.6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qpk70"]
+bg_color = Color(0.97, 0.00969999, 0.0737199, 0.980392)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+
 [node name="Node3D" type="Node3D"]
+script = ExtResource("1_xlg7c")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_mwb40")
@@ -17,3 +70,44 @@ script = ExtResource("2_33cqm")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.707107, 0.5, -0.5, 0, 0.707107, 0.707107, 0.707107, -0.5, 0.5, -1000, 1414.21, 1000)
 shadow_enabled = true
+
+[node name="Score_board" type="RichTextLabel" parent="."]
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 283.0
+offset_bottom = 100.0
+theme_override_fonts/normal_font = SubResource("FontFile_p1ry8")
+bbcode_enabled = true
+script = ExtResource("4_xwcet")
+
+[node name="Score" type="RichTextLabel" parent="Score_board"]
+layout_mode = 0
+offset_left = 120.0
+offset_right = 352.0
+offset_bottom = 215.0
+script = ExtResource("5_p1ry8")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_17rxn")
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 240.0
+offset_top = 20.0
+offset_right = 280.0
+offset_bottom = 60.0
+
+[node name="ProgressBar" type="ProgressBar" parent="Control"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = -10.102
+anchor_top = -4.638
+offset_left = 404.08
+offset_top = 185.52
+offset_right = 217.0
+offset_bottom = 23.0
+theme = SubResource("Theme_qpk70")
+theme_override_styles/background = SubResource("StyleBoxFlat_xlg7c")
+theme_override_styles/fill = SubResource("StyleBoxFlat_qpk70")
+show_percentage = false
