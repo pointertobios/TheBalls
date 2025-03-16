@@ -18,6 +18,6 @@ func set_radial_acceleration(accel: float) -> void:
 		material.radial_accel_max = accel
 		material.initial_velocity_min = 5
 		material.initial_velocity_max = 10
-		material.damping_min = 5
-		material.damping_max = 5
+		material.damping_min = 0
+		material.damping_max = 0
 		material.spread = 360

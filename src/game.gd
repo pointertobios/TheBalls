@@ -1,9 +1,13 @@
 extends Node3D
 
+class_name Game
+
 @onready var enemy_scene = load("res://scene/enemy.tscn")
 
 # 最大敌人数量
 @export var max_enemies: int = 5
+
+var enemy_list = []
 
 # 当前生成的敌人数量
 var current_enemies: int = 0
@@ -26,6 +30,8 @@ func _process(delta: float) -> void:
 func spawn_enemy() -> void:
 	# 实例化敌人场景
 	var enemy_instance = enemy_scene.instantiate()
+	enemy_list.append(enemy_instance)
+	enemy_instance.add_to_group("enemies")
 	# 将敌人添加到场景中
 	add_child(enemy_instance)
 	

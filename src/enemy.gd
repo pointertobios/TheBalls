@@ -4,6 +4,7 @@ class_name Enemy
 
 @onready var meshi = $MeshInstance3D
 @onready var player: BallPlayer = get_node("../Player")
+
 @onready var Particles = $GPUParticles3D
 
 @onready var mesh = meshi.mesh as SphereMesh
@@ -13,6 +14,9 @@ class_name Enemy
 var acc: Vector3
 var fric = 0.9
 var score_add = 10
+
+var mutex = Mutex.new()
+
 
 # 玩家血量
 var player_blood: int
@@ -98,37 +102,27 @@ func _physics_process(delta: float) -> void:
 
 	# 应用移动并检测碰撞
 	move_and_slide()
-
-	# 检测玩家与敌人是否接触
-	if is_near():
+	
+	# 检测敌人接触技能或玩家
+	if not is_hidden and player.is_ultimate and (player.ultimate_ball.position - position).length() <= \
+	mesh.radius + player.ultimate_ball.current_radius:
+		$Die.emitting = true
+		$Die.set_radial_acceleration(10)
+		damage()
+		player.shake_camera()
+	elif not is_hidden and player.is_skill_emitting() and (player.position - position).length() <= mesh.radius + player.mesh.radius + 3:
+		$Die.emitting = true
+		$Die.set_radial_acceleration(10)
+		player.skill_emitting()
+		damage()
+	elif not is_hidden and is_near():
 		if player.gravity.charging and player.position.y > position.y:
 			# 玩家压扁敌人
 			start_squash_effect()  # 调用压扁效果函数
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-
-			# 更新分数
-			var tmp = score.cur_score
-			tmp += score_add
-			score.cur_score = tmp
-			score.clear()
-			score.push_font_size(score.default_font)
-			score.add_text(str(tmp))
-			score.pop()
-
-			# 禁用碰撞检测
-			$CollisionShape3D.disabled = true
-			Particles.emitting = false
-
-			# 延迟隐藏敌人
 			await get_tree().create_timer(0.4).timeout  # 等待压扁动画完成
-			meshi.visible = false
-
-			# 碰撞发生，隐藏敌人并启动计时器
-			is_hidden = true
-			is_die = true
-			die_timer = 0.01
-			hide_timer = 3.0  # 隐藏3秒钟
+			damage()
 		elif can_damage_player and not $CollisionShape3D.disabled:
 			# 扣除玩家血量
 			player.blood -= 1  # 假设每次扣除1点血量
@@ -151,3 +145,23 @@ func start_squash_effect() -> void:
 # 检测玩家与敌人是否接近
 func is_near() -> bool:
 	return (player.position - position).length() <= mesh.radius + player.mesh.radius + 0.5
+	
+func damage():
+	# 更新分数
+	if is_die or is_hidden:
+		return
+	score.add(score_add)
+
+	# 禁用碰撞检测
+	$CollisionShape3D.disabled = true
+	Particles.emitting = false
+
+	# 延迟隐藏敌人
+	
+	meshi.visible = false
+
+	# 碰撞发生，隐藏敌人并启动计时器
+	is_hidden = true
+	is_die = true
+	die_timer = 0.01
+	hide_timer = 3.0  # 隐藏3秒钟
