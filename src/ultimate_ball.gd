@@ -7,17 +7,26 @@ class_name UltimateBall
 signal ultimate_ended
 
 @export var initial_radius: float = 1.0  # 初始半径
-@export var expansion_rate: float = 2.0  # 每秒半径扩大 5 米
-@export var duration: float = 5.0  # 大招持续时间
+@export var expansion_rate: float = 4.0  # 每秒半径扩大 6 米
+@export var shrink_rate: float = 4.0  # 每秒半径缩小 6 米
+@export var duration: float = 5.0  # 大招第一阶段持续时间
+@export var second_phase_duration: float = 5.0  # 大招第二阶段持续时间
 @export var fade_rate: float = 0.2  # 每秒透明度减少 0.2
+@export var darken_rate: float = 0.2  # 每秒颜色变深 0.2
+@export var explosion_rate: float = 35.0  # 爆炸时半径扩大速度
+
+@onready var ground: Ground = get_node("../Board")
+@onready var game: Game = get_node("../")
+@onready var player: BallPlayer = get_node("../Player")
 
 var current_radius: float = initial_radius
 var current_alpha: float = 1.0
+var current_color: Color = Color(0 / 255, 255 / 255, 255 / 255, current_alpha)  # 初始颜色
 var timer: float = 0.0
 var player_position_y: float
 
 # 球体材质
-var material: StandardMaterial3D
+var material: ShaderMaterial
 
 func _ready() -> void:
 	# 创建半球体
@@ -26,27 +35,98 @@ func _ready() -> void:
 	sphere_mesh.radius = initial_radius
 	sphere_mesh.height = initial_radius * 2
 	mesh_instance.mesh = sphere_mesh
-	# 设置半球体材质为紫色
-	material = StandardMaterial3D.new()
-	material.albedo_color = Color(0 / 255, 255 / 255, 255 / 255, current_alpha)  # 紫色，透明度为 1.0
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA  # 启用透明度
+
+	# 创建 ShaderMaterial 并加载 Shader 脚本
+	material = ShaderMaterial.new()
+	material.shader = load("res://shader/ultimate_ball.gdshader")  # 加载 Shader 脚本
+	material.set_shader_parameter("albedo_color", current_color)  # 设置初始颜色
+	material.set_shader_parameter("alpha", current_alpha)  # 设置初始透明度
+	material.set_shader_parameter("emission_enabled", false)  # 初始关闭发光
 	mesh_instance.material_override = material
-	
+
 	# 将半球体添加到场景中
 	add_child(mesh_instance)
+	# 重置地板 Shader 参数
+	ground.reset_shader_parameters()
+	ground.darken()  # 调用地面 Shader
+
+var re = true
+var is_second_phase: bool = false
+var is_exploding: bool = false  # 是否正在爆炸
 
 func _process(delta: float) -> void:
 	timer += delta
-	# 更新半球体半径
-	current_radius += expansion_rate * delta
-	scale = Vector3(current_radius, current_radius, current_radius)
-	
-	# 更新半球体透明度
-	current_alpha -= fade_rate * delta
-	current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
-	material.albedo_color.a = current_alpha  # 更新透明度
-	
-	# 大招结束后销毁半球体
-	if timer >= duration:
-		emit_signal("ultimate_ended")  # 发射信号
-		queue_free()
+	position = player.position
+
+	if !is_second_phase:
+		# 第一阶段：球体扩大
+		current_radius += expansion_rate * delta
+		current_alpha -= fade_rate * delta
+		current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
+		print(current_alpha)
+		# 更新球体大小和透明度
+		scale = Vector3(current_radius, current_radius, current_radius)
+		material.set_shader_parameter("alpha", current_alpha)
+
+		# 大招开始时触发颜色变化
+		if timer >= 0.0 and timer < 0.4:
+			for enemy in game.enemy_list:
+				enemy.whiten()  # 调用敌人 Shader
+
+		# 第一阶段结束后进入第二阶段
+		if timer >= duration:
+			is_second_phase = true
+			timer = 0.0  # 重置计时器
+			# 进入第二阶段后，设置球体颜色为浅灰色并启用发光
+			current_color = Color(0.8, 0.8, 0.8, current_alpha)  # 浅灰色
+			material.set_shader_parameter("albedo_color", current_color)
+			material.set_shader_parameter("emission_enabled", true)  # 启用发光
+			material.set_shader_parameter("emission_color", Color(1.0, 1.0, 1.0))  # 设置发光颜色为白色
+	else:
+		# 第二阶段：球体缩小
+		current_radius -= shrink_rate * delta
+		current_radius = max(current_radius, initial_radius)  # 确保半径不小于初始值
+		current_alpha += fade_rate * delta
+		current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
+
+		# 更新球体大小和透明度
+		scale = Vector3(current_radius, current_radius, current_radius)
+		material.set_shader_parameter("alpha", current_alpha)
+
+		# 更新地板颜色（从黑色渐变到红色）
+		ground.set_red_factor(min(timer / second_phase_duration, 1.0))
+
+		# 大招结束后恢复颜色
+		if timer >= second_phase_duration and timer < second_phase_duration + 2.0:
+			if re:
+				ground.lighten()
+				re = false
+			for enemy in game.enemy_list:
+				enemy.unwhiten()  # 调用敌人 Shader
+
+			# 爆炸效果
+			if !is_exploding:
+				is_exploding = true
+				start_explosion()
+
+		# 第二阶段结束后销毁球体
+		elif timer >= second_phase_duration + 2.0:
+			emit_signal("ultimate_ended")  # 发射信号
+			queue_free()
+
+# 爆炸效果
+func start_explosion() -> void:
+	var explosion_timer: float = 0.0
+	while explosion_timer < 2.0:
+		# 更新半径和透明度
+		current_radius += explosion_rate * get_process_delta_time()
+		current_alpha -= fade_rate * get_process_delta_time() * 10
+		current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
+
+		# 更新球体大小和透明度
+		scale = Vector3(current_radius, current_radius, current_radius)
+		material.set_shader_parameter("alpha", current_alpha)
+
+		# 更新计时器
+		explosion_timer += get_process_delta_time()
+		await get_tree().process_frame  # 等待下一帧

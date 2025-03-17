@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://5yrfd1s4ejo1" path="res://src/hit.gd" id="4_ct4mp"]
 [ext_resource type="Script" uid="uid://c2n2b70qfnbjs" path="res://src/skill.gd" id="5_s4jxa"]
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_sh265"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_s4jxa"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_hjaqi"]
 render_priority = 0
@@ -77,13 +77,7 @@ height = 10.0
 [node name="Player" type="CharacterBody3D"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-shape = SubResource("CylinderShape3D_sh265")
-
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 10, 14.142, 10)
-
-[node name="RayCast3D" type="RayCast3D" parent="Camera3D"]
-target_position = Vector3(0, -1, -1000)
+shape = SubResource("SphereShape3D_s4jxa")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 0, 0, 0)
@@ -117,3 +111,9 @@ one_shot = true
 process_material = SubResource("ParticleProcessMaterial_s4jxa")
 draw_pass_1 = SubResource("SphereMesh_s4jxa")
 script = ExtResource("5_s4jxa")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 10.9727, 11.0723, 11.3796)
+
+[node name="RayCast3D" type="RayCast3D" parent="Camera3D"]
+target_position = Vector3(0, -1, -1000)

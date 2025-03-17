@@ -4,6 +4,7 @@ class_name Enemy
 
 @onready var meshi = $MeshInstance3D
 @onready var player: BallPlayer = get_node("../Player")
+@onready var skill: Skill = get_node("../Player/Skill")
 
 @onready var Particles = $GPUParticles3D
 
@@ -38,12 +39,25 @@ var can_damage_player: bool = true
 
 var random_inter: int = 100
 
-func _init() -> void:
+func get_life():
 	var pos = randf_range(1, random_inter)
 	if pos > 50 and pos <= 100:
 		speed = 10
 	else:
 		speed = 3
+
+func _ready() -> void:
+	get_life()
+	# 加载 Shader 脚本
+	var shader: Resource = load("res://shader/enemy_dying.gdshader")
+	
+	
+	# 创建 ShaderMaterial
+	var material = ShaderMaterial.new()
+	material.shader = shader
+	
+	# 应用到敌人节点
+	meshi.material_override = material
 
 func _physics_process(delta: float) -> void:
 	if not player:
@@ -73,7 +87,7 @@ func _physics_process(delta: float) -> void:
 		if die_timer <= 0:
 			is_die = false
 			$Die.emitting = false
-			_init()
+			get_life()
 
 	# 获取玩家的水平位置（忽略 Y 轴）
 	var player_position = Vector3(player.position.x, 0, player.position.z)
@@ -105,12 +119,14 @@ func _physics_process(delta: float) -> void:
 	
 	# 检测敌人接触技能或玩家
 	if not is_hidden and player.is_ultimate and (player.ultimate_ball.position - position).length() <= \
-	mesh.radius + player.ultimate_ball.current_radius:
+	mesh.radius + player.ultimate_ball.current_radius + 0.5 and (player.ultimate_ball.position - position).length() >= \
+	mesh.radius + player.ultimate_ball.current_radius - 0.5:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
 		damage()
 		player.shake_camera()
-	elif not is_hidden and player.is_skill_emitting() and (player.position - position).length() <= mesh.radius + player.mesh.radius + 3:
+	elif not is_hidden and player.is_skill_emitting() and (player.position - position).length() <= \
+	skill.collision_radius:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
 		player.skill_emitting()
@@ -165,3 +181,15 @@ func damage():
 	is_die = true
 	die_timer = 0.01
 	hide_timer = 3.0  # 隐藏3秒钟
+	
+@export var whiten_speed: float = 2.5  # 渐变速度（1 / 0.4 秒）
+# 渐变到白色
+func whiten():
+	for i in range(24):
+		await get_tree().create_timer(0.016).timeout
+		(meshi.material_override as ShaderMaterial).set_shader_parameter("whiten_factor", float(i + 1) / 24)
+# 渐变回原色
+func unwhiten():
+	for i in range(24):
+		await get_tree().create_timer(0.016).timeout
+		(meshi.material_override as ShaderMaterial).set_shader_parameter("whiten_factor", 1.0 - float(i + 1) / 24)
