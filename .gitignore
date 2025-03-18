@@ -4,3 +4,5 @@
 .vscode/
 *.import
 *.uid
+build/
+.cache

@@ -1,0 +1,3 @@
+[submodule "server/deps/docopt"]
+	path = server/deps/docopt
+	url = https://github.com/docopt/docopt.cpp.git
