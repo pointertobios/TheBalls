@@ -3,6 +3,7 @@ extends CharacterBody3D
 class_name BallPlayer
 
 @onready var meshi = $MeshInstance3D
+@onready var coll : CollisionShape3D = $CollisionShape3D
 @onready var blood_board = get_node("../Control/ProgressBar")
 @onready var mesh = meshi.mesh as SphereMesh
 @onready var gravity = Gravity.new(9.8, mesh.radius, 0.5)
@@ -67,10 +68,14 @@ func _process(delta: float) -> void:
 		ultimate_ball.player_position_y = position.y
 		ultimate_ball.ultimate_ended.connect(_on_ultimate_ended)
 		get_parent().add_child(ultimate_ball)  # 将球体添加到场景中
-		for i in range(24):
+		bigger()
+			
+func bigger():
+	for i in range(48):
 			await get_tree().create_timer(0.016).timeout
-			mesh.radius += 0.1
-			mesh.height += 0.2
+			mesh.radius += 0.05
+			mesh.height += 0.1
+			(coll.shape as SphereShape3D).radius += 0.05
 
 var internal_acc_will_release: bool = false
 
@@ -137,13 +142,15 @@ func is_skill_emitting():
 # 大招结束时的回调
 func _on_ultimate_ended():
 	is_ultimate = false  # 大招结束，设置为 false
-	for i in range(24):
+	for i in range(48):
 			await get_tree().create_timer(0.016).timeout
-			if i == 23:
+			if i == 47:
 				mesh.radius = 0.5
 				mesh.height = 1
+				(coll.shape as SphereShape3D).radius = 0.5
 			else:
-				mesh.radius -= 0.1
-				mesh.height -= 0.2
+				mesh.radius -= 0.05
+				mesh.height -= 0.1
+				(coll.shape as SphereShape3D).radius -= 0.05
 			
 	

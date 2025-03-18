@@ -116,7 +116,8 @@ func _physics_process(delta: float) -> void:
 
 	# 应用移动并检测碰撞
 	move_and_slide()
-	
+	#print(player.position)
+	#print(position)
 	# 检测敌人接触技能或玩家
 	if not is_hidden and player.is_ultimate and (player.ultimate_ball.position - position).length() <= \
 	mesh.radius + player.ultimate_ball.current_radius + 0.5 and (player.ultimate_ball.position - position).length() >= \
@@ -125,7 +126,7 @@ func _physics_process(delta: float) -> void:
 		$Die.set_radial_acceleration(10)
 		damage()
 		player.shake_camera()
-	elif not is_hidden and player.is_skill_emitting() and (player.position - position).length() <= \
+	elif not is_hidden and player.is_skill_emitting() and (Vector3(player.position.x, 0, player.position.z) - position).length() <= \
 	skill.collision_radius:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
@@ -142,7 +143,6 @@ func _physics_process(delta: float) -> void:
 		elif can_damage_player and not $CollisionShape3D.disabled:
 			# 扣除玩家血量
 			player.blood -= 1  # 假设每次扣除1点血量
-			print(player.blood)
 			can_damage_player = false
 			damage_cooldown = 1.0  # 设置1秒的冷却时间
 
