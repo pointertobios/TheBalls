@@ -22,7 +22,6 @@ func darken():
 	for i in range(24):
 		await get_tree().create_timer(0.016).timeout
 		(material_override as ShaderMaterial).set_shader_parameter("darken_factor", float(i + 1) / 24)
-		#print((material_override as ShaderMaterial).get_shader_parameter("darken_factor"))
 		
 	#var tween = self.create_tween()
 	#tween.tween_property(material_override, "shader_param/darken_factor", 1.0, 1.0 / darken_speed)

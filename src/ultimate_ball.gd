@@ -133,7 +133,6 @@ func start_explosion() -> void:
 		# 缓慢增大半径（爆炸前）
 		if current_radius < target_radius and !is_exploding_fast:
 			current_radius += 7 * get_process_delta_time()  # 缓慢增大半径
-			print(current_radius)
 			#current_radius = min(current_radius, target_radius)  # 确保半径不超过目标值
 
 			# 逐渐增加亮度
@@ -143,8 +142,6 @@ func start_explosion() -> void:
 
 			# 设置亮度
 			material.set_shader_parameter("albedo_color", Vector4(brightness, brightness, brightness, 1))
-			#print(material.get_shader_parameter("brightness"))
-			#print(brightness)
 			
 		# 快速爆炸（当半径达到目标值后）
 		elif current_radius >= target_radius or is_exploding_fast:

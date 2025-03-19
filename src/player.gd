@@ -22,6 +22,7 @@ var ultimate_ball: UltimateBall
 var is_ultimate: bool = false
 
 var max_velocity = 10
+var attack_damage = 2
 
 
 @onready var camera = $Camera3D as Node3D
@@ -76,6 +77,7 @@ func bigger():
 			mesh.radius += 0.05
 			mesh.height += 0.1
 			(coll.shape as SphereShape3D).radius += 0.05
+			#gravity.ballradius = mesh.radius
 
 var internal_acc_will_release: bool = false
 
@@ -115,7 +117,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	if internal_acc_will_release:
-		internal_acc_will_release = false
+		internal_acc_will_release = false 
 		position = tmp_position
 		velocity = tmp_velocity
 
@@ -151,6 +153,8 @@ func _on_ultimate_ended():
 			else:
 				mesh.radius -= 0.05
 				mesh.height -= 0.1
-				(coll.shape as SphereShape3D).radius -= 0.05
+				if (coll.shape as SphereShape3D).radius - 0.05 >= 0:
+					(coll.shape as SphereShape3D).radius -= 0.05
+			#gravity.ballradius = mesh.radius
 			
 	
