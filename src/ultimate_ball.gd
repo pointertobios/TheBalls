@@ -19,12 +19,17 @@ signal ultimate_ended
 @onready var game: Game = get_node("../")
 @onready var player: BallPlayer = get_node("../Player")
 
+@onready var enemies = ($".." as Game).enemy_list
+
 var current_radius: float = initial_radius
 var current_alpha: float = 1.0
 var current_color: Color = Color(0 / 255, 255 / 255, 255 / 255, current_alpha)  # 初始颜色
 var timer: float = 0.0
 var player_position_y: float
 var down_brightness: float = 1.0
+var one_prase_ult: bool = false
+var second_prase_ult: bool = false
+
 
 # 球体材质
 var material: ShaderMaterial
@@ -64,6 +69,10 @@ func _process(delta: float) -> void:
 
 	if !is_second_phase:
 		# 第一阶段：球体扩大
+		if not one_prase_ult:
+			reset_time()
+		one_prase_ult = true
+			
 		current_radius += expansion_rate * delta
 		current_alpha -= fade_rate * delta
 		current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
@@ -87,6 +96,9 @@ func _process(delta: float) -> void:
 			material.set_shader_parameter("emission_color", Color(1.0, 1.0, 1.0))  # 设置发光颜色为白色
 	else:
 		# 第二阶段：球体缩小
+		if not second_prase_ult:
+			reset_time()
+		second_prase_ult = true
 		current_radius -= shrink_rate * delta
 		current_radius = max(current_radius, initial_radius)  # 确保半径不小于初始值
 		current_alpha += fade_rate * delta
@@ -116,12 +128,13 @@ func _process(delta: float) -> void:
 				start_explosion()
 
 		# 第二阶段结束后销毁球体
-		elif timer >= second_phase_duration + 6.0:
+		elif timer >= second_phase_duration + 4.0:
 			emit_signal("ultimate_ended")  # 发射信号
 			queue_free()
 
 # 爆炸效果
 func start_explosion() -> void:
+	reset_time()
 	var explosion_timer: float = 0.0
 	var slow_expansion_timer: float = 0.0
 	var target_radius: float = 8.0  # 爆炸前的目标半径
@@ -159,20 +172,7 @@ func start_explosion() -> void:
 		slow_expansion_timer += get_process_delta_time()
 		await get_tree().process_frame  # 等待下一帧
 	is_exploding = false
-
-
-#func start_explosion() -> void:
-	#var explosion_timer: float = 0.0
-	#while explosion_timer < 2.0:
-		## 更新半径和透明度
-		#current_radius += explosion_rate * get_process_delta_time()
-		#current_alpha -= fade_rate * get_process_delta_time() * 7
-		#current_alpha = clamp(current_alpha, 0.0, 1.0)  # 确保透明度在 0 到 1 之间
-#
-		## 更新球体大小和透明度
-		#scale = Vector3(current_radius, current_radius, current_radius)
-		#material.set_shader_parameter("alpha", current_alpha)
-#
-		## 更新计时器
-		#explosion_timer += get_process_delta_time()
-		#await get_tree().process_frame  # 等待下一帧
+	reset_time()
+func reset_time():
+	for enemy in enemies:
+		enemy.is_ultimate_attack = false

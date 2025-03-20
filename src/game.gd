@@ -2,7 +2,7 @@ extends Node3D
 
 class_name Game
 
-@onready var enemy_scene = load("res://scene/enemy.tscn")
+@onready var enemy_scene: Resource = load("res://scene/enemy.tscn")
 
 # 最大敌人数量
 @export var max_enemies: int = 5
@@ -34,9 +34,6 @@ func spawn_enemy() -> void:
 	enemy_instance.add_to_group("enemies")
 	# 将敌人添加到场景中
 	add_child(enemy_instance)
-	
-	# 设置敌人的初始位置（可以根据需要调整）
-	enemy_instance.position = Vector3(randf_range(-50, 50), 0, randf_range(-50, 50))
 	
 	
 	# 增加当前敌人数量

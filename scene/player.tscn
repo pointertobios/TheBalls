@@ -38,6 +38,7 @@ alpha_curve = SubResource("CurveTexture_ct4mp")
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fvtld"]
 transparency = 1
 blend_mode = 1
+cull_mode = 2
 albedo_texture = ExtResource("2_fvtld")
 emission_enabled = true
 emission = Color(1, 1, 1, 1)
@@ -113,7 +114,7 @@ draw_pass_1 = SubResource("SphereMesh_s4jxa")
 script = ExtResource("5_s4jxa")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 10.9727, 11.0723, 11.3796)
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 10, 14.142, 10)
 
 [node name="RayCast3D" type="RayCast3D" parent="Camera3D"]
 target_position = Vector3(0, -1, -1000)

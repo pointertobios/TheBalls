@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://be6kqpime2c1a"]
+[gd_scene load_steps=16 format=3 uid="uid://be6kqpime2c1a"]
 
 [ext_resource type="Script" uid="uid://b4rusbsmjgghf" path="res://src/enemy.gd" id="1_8u16h"]
 [ext_resource type="Texture2D" uid="uid://div7dbt54k8ky" path="res://asset/enemy_taile .png" id="3_yvcfn"]
@@ -88,13 +88,14 @@ material = SubResource("StandardMaterial3D_1e552")
 radius = 0.3
 height = 0.6
 
-[sub_resource type="ImageTexture" id="ImageTexture_8u16h"]
-
 [node name="Enemy" type="CharacterBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1000, -1000, -1000)
+visible = false
 script = ExtResource("1_8u16h")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("SphereShape3D_b7koy")
+disabled = true
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("SphereMesh_8u16h")
@@ -116,5 +117,4 @@ process_material = SubResource("ParticleProcessMaterial_yvcfn")
 draw_pass_1 = SubResource("SphereMesh_ulb22")
 script = ExtResource("4_b7koy")
 
-[node name="HealthBar" type="Sprite3D" parent="."]
-texture = SubResource("ImageTexture_8u16h")
+[node name="Sprite3D" type="Sprite3D" parent="."]
