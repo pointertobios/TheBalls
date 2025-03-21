@@ -51,6 +51,8 @@ var is_attack_by_skill: float = false
 # 用于控制大招伤害的冷却时间
 var is_ultimate_attack: bool = false
 
+var dying_player_recover = 3
+
 
 func get_life():
 	var pos = randf_range(1, random_inter)
@@ -149,7 +151,6 @@ func _physics_process(delta: float) -> void:
 		if die_timer <= 0:
 			is_die = false
 			$Die.emitting = false
-			player.balance_blood()
 			get_life()
 	if not player.confine.is_confine:
 		# 获取玩家的水平位置（忽略 Y 轴）
@@ -187,7 +188,7 @@ func _physics_process(delta: float) -> void:
 		if !is_ultimate_attack:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-			take_damage(player.ATK * player.ulti_mult)  # 开大时造成更高伤害
+			take_ulti_damage(player.ATK * player.ulti_mult)  # 开大时造成更高伤害
 			is_ultimate_attack = true
 	elif not is_hidden and player.is_skill_emitting() and (Vector3(player.position.x, 0, player.position.z) - position).length() <= \
 	skill.collision_radius and not is_attack_by_skill:
@@ -210,7 +211,6 @@ func _physics_process(delta: float) -> void:
 				player.blood -= 1  # 假设每次扣除1点血量
 				can_damage_player = false
 				damage_cooldown = 1.0  # 设置1秒的冷却时间
-
 # 新增：敌人受到伤害
 func take_damage(damage: float) -> void:
 	var ran_num = randf_range(1, 100)
@@ -218,11 +218,27 @@ func take_damage(damage: float) -> void:
 	if ran_num <= player.cri_ch:
 		is_cri = true
 		damage *= player.cri_hit
-	print(is_cri)
 	var damage_digital = DamageText.new(damage, position, is_cri)
 	game.add_child(damage_digital)
 	health -= damage
 	if health <= 0:
+		die()  # 调用 die 函数
+	update_health_bar()
+	
+func take_ulti_damage(damage: float) -> void:
+	var ran_num = randf_range(1, 100)
+	var is_cri = false
+	if ran_num <= player.cri_ch:
+		is_cri = true
+		damage *= player.cri_hit
+	var damage_digital = DamageText.new(damage, position, is_cri)
+	game.add_child(damage_digital)
+	health -= damage
+	if health <= 0:
+		player.blood += dying_player_recover
+		var recover = DamageText.new(-dying_player_recover, player.position, false)
+		game.add_child(recover)
+		player.balance_blood()
 		die()  # 调用 die 函数
 	update_health_bar()
 

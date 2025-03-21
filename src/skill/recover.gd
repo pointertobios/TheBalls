@@ -12,7 +12,9 @@ func _init(player):
 	self.player = player
 
 # 回血函数
-func heal() -> void:
+func heal(game: Game) -> void:
 	# 调用玩家的回血方法
 	player.blood += heal_amount
 	player.balance_blood()
+	var recover = DamageText.new(-heal_amount, player.position, false)
+	game.add_child(recover)

@@ -15,9 +15,15 @@ var moving = LinearMoving.new(func(t):
 	return origin_pos.y + log(t + 1) * upmoving_vel
 )
 
+# 大于0红色，小于0绿色
 func _init(value, pos, is_cri):
+	if value >= 0:
+		modulate = Color.CRIMSON
+	else:
+		modulate = Color.CHARTREUSE
+		value = -value
 	self.is_cri = is_cri
-	text = str(int(abs(value))) + ("!!" if is_cri else "")
+	text = str(int(value)) + ("!!" if is_cri else "")
 	#if is_cri:
 		#text += "!!"
 	#text = str(is_cri) + ("!!" if is_cri else "")
@@ -26,8 +32,7 @@ func _init(value, pos, is_cri):
 	no_depth_test = true
 	font_size = 5 * log(value * 10) / log(1.2)
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	upmoving_vel = randf_range(50, 500) / value
-	modulate = Color.CRIMSON
+	upmoving_vel = randf_range(2, 15)
 	if is_cri:
 		outline_size = 30
 	else:

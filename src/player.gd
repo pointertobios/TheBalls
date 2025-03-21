@@ -44,6 +44,7 @@ var camera_2 = 14.142
 var camera_3 = 10
 @onready var camera = $Camera3D as Node3D
 var current_camera_view: int = 0  # 当前视角索引
+@onready var game: Game = $".."
 
 # 暴击率/暴击伤害
 var ATK: int = 20
@@ -142,7 +143,7 @@ func _process(delta: float) -> void:
 		get_parent().add_child(ultimate_ball)  # 将球体添加到场景中
 		bigger()
 	if Input.is_action_just_pressed("1"):
-		recover.heal()
+		recover.heal(game)
 	if Input.is_action_just_pressed("2"):
 		shield.activate_shield()
 	if Input.is_action_just_pressed("3"):
