@@ -16,6 +16,7 @@ var material: StandardMaterial3D
 
 func _ready() -> void:
 	# 创建血条纹理
+	position = Vector3(-10000, -10000, -10000)
 	var image = Image.create(256, 16, false, Image.FORMAT_RGBA8)
 	image.fill(color)
 	var texture = ImageTexture.create_from_image(image)
@@ -51,7 +52,6 @@ func update_health(health_ratio: float) -> void:
 	# 动态调整发光强度
 	material.emission_energy_multiplier = 1.0 + (1.0 - health_ratio) * 2.0  # 血量越低，发光越强
 
-	print("Scale X: ", self.scale.x)  # 调试：打印 scale.x 的值
 
 # 重置血条
 func reset_color() -> void:

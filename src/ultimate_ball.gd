@@ -6,7 +6,7 @@ class_name UltimateBall
 # 定义信号
 signal ultimate_ended
 
-@export var initial_radius: float = 1.0  # 初始半径
+@export var initial_radius: float = 1  # 初始半径
 @export var expansion_rate: float = 10.0  # 每秒半径扩大 6 米
 @export var shrink_rate: float = 10.0  # 每秒半径缩小 6 米
 @export var duration: float = 5.0  # 大招第一阶段持续时间
@@ -29,6 +29,7 @@ var player_position_y: float
 var down_brightness: float = 1.0
 var one_prase_ult: bool = false
 var second_prase_ult: bool = false
+var last_prase_ult: bool = false
 
 
 # 球体材质
@@ -135,6 +136,7 @@ func _process(delta: float) -> void:
 # 爆炸效果
 func start_explosion() -> void:
 	reset_time()
+	last_prase_ult = true
 	var explosion_timer: float = 0.0
 	var slow_expansion_timer: float = 0.0
 	var target_radius: float = 8.0  # 爆炸前的目标半径

@@ -10,37 +10,78 @@ class_name BallPlayer
 
 @onready var enemies = ($".." as Game).enemy_list
 
+# Skill
+var recover : Recover
+var shield : Shield
+var sprint : Sprint
+var confine : Confine
+var atk : Atk
+var cri : Cri
 
+# 玩家属性
 var acc: Vector3
-var fric = 0.9
-
+var fric = 0.85
 var hit_timer: float = 0.0
 var is_hit: bool = false
 var is_last_on_floor: bool = true
 var blood: int = 100
 
+# 技能相关
 var skill_timer: float = 0.0
 var is_skill: bool = false
 var ultimate_ball: UltimateBall
 var is_ultimate: bool = false
 
+# 速度相关
 var max_velocity = 10
 var attack_damage = 2
+var speed_multiplier: float = 1.0  # 默认速度倍率
+var is_sprint: bool = false  # 是否处于疾跑状态
 
+# 摄像机相关
 var camera_1 = 10
 var camera_2 = 14.142
 var camera_3 = 10
-
 @onready var camera = $Camera3D as Node3D
-@onready var camera_origin_position = camera.position
+var current_camera_view: int = 0  # 当前视角索引
 
-# 当前视角索引
-var current_camera_view: int = 0
+# 暴击率/暴击伤害
+var ATK: int = 20
+var cri_ch: float = 50
+var cri_hit: float = 1.5
+var ulti_mult: float = 10
+var skill_mult: float = 1.5
 
-func _init() -> void:
-	pass
+func _ready() -> void:
+	# 获取或创建材质
+	var material = meshi.material_override
+	if not material:
+		material = StandardMaterial3D.new()
+		meshi.material_override = material
+	material.albedo_color = Color(0, 1, 1)
+	# 启用发光
+	material.emission_enabled = true
+	material.emission = Color(0, 1, 1)
+	material.emission_energy_multiplier = 0  # 发光强度
+	recover = Recover.new(self)
+	shield = Shield.new(self)
+	sprint = Sprint.new(self)
+	confine = Confine.new(self)
+	atk = Atk.new(self)
+	cri = Cri.new(self)
+	
+	add_child(shield)
+	add_child(sprint)
+	add_child(confine)
+	add_child(atk)
+	add_child(cri)
+	
+
+func camera_distance():
+	return 15 * (log(2 * coll.shape.radius) + 1) / log(10)
 
 func shake_camera():
+	var d = camera_distance()
 	for i in range(50):
 		await get_tree().create_timer(0.02).timeout
 		var offset = sin(i * 0.2)
@@ -51,11 +92,14 @@ func shake_camera():
 				.rotated(Vector3(1, 0, 0), -45)  \
 				.normalized()
 		direc *= offset * 0.3
-		camera.position = camera_origin_position + direc
-	camera.position = camera_origin_position
+		camera.position = Vector3(d, sqrt(2) * d, d) + direc * d / (10 * (log(1) + 1) / log(10))
+	camera.position = Vector3(d, sqrt(2) * d, d)
+
+func update_camera_distance():
+	var d = camera_distance()
+	camera.position = Vector3(d, sqrt(2) * d, d)
 
 func _process(delta: float) -> void:
-	print(rotation)
 	# 检测 L 键按下，切换摄像头视角
 	if Input.is_action_just_pressed("KEY_L"):
 		current_camera_view = (current_camera_view + 1) % 4  # 循环切换 0-3
@@ -70,10 +114,13 @@ func _process(delta: float) -> void:
 	var input_dir = Input.get_vector("KEY_A", "KEY_D", "KEY_W", "KEY_S")
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
+	# 计算加速度
 	acc = direction.rotated(Vector3.UP, deg_to_rad(45 + rotation.y)) * \
-			(-log(velocity.length() + 0.5) + 2)
-	if Input.is_action_pressed("Right_Button"):
-		acc *= 8
+			(-log(velocity.length() + 0.5) + 5)
+	# 如果处于疾跑状态，应用速度倍率
+	if is_sprint:
+		acc *= speed_multiplier
+
 	if Input.is_action_just_pressed("KEY_SHIFT"):
 		gravity.charge()
 	elif Input.is_action_just_released("KEY_SHIFT"):
@@ -84,6 +131,7 @@ func _process(delta: float) -> void:
 		skill_timer = 0.2
 		for enemy in enemies:
 			enemy.is_attack_by_skill = false
+		enable_glow(Color(0, 0.5019, 1), 0.5)
 		skill_emitting()
 	if Input.is_action_just_pressed("KEY_Q"):  # 检测 Q 键按下
 		is_ultimate = true
@@ -93,6 +141,18 @@ func _process(delta: float) -> void:
 		ultimate_ball.ultimate_ended.connect(_on_ultimate_ended)
 		get_parent().add_child(ultimate_ball)  # 将球体添加到场景中
 		bigger()
+	if Input.is_action_just_pressed("1"):
+		recover.heal()
+	if Input.is_action_just_pressed("2"):
+		shield.activate_shield()
+	if Input.is_action_just_pressed("3"):
+		sprint.activate_sprint()
+	if Input.is_action_just_pressed("4"):
+		confine.activate_confine()
+	if Input.is_action_just_pressed("5"):
+		atk.benison()
+	if Input.is_action_just_pressed("6"):
+		cri.benison()
 
 func bigger():
 	for i in range(48):
@@ -104,10 +164,17 @@ func bigger():
 var internal_acc_will_release: bool = false
 
 func _physics_process(delta: float) -> void:
+	update_camera_distance()
+
 	blood_board.value = blood
 	velocity += acc
+	# 限制速度
+	if velocity.length() > max_velocity * (speed_multiplier if is_sprint else 1.0):
+		velocity = velocity.normalized() * max_velocity * (speed_multiplier if is_sprint else 1.0)
+
 	velocity -= velocity.normalized() * fric * \
 			sqrt(velocity.length() * 0.06)
+	#print(velocity)
 	gravity.update(delta)
 	position.y = gravity.at()
 	meshi.scale = gravity.zoom()
@@ -133,6 +200,7 @@ func _physics_process(delta: float) -> void:
 		if skill_timer <= 0:
 			is_skill = false
 			$Skill.emitting = false
+		disable_glow()
 
 	move_and_slide()
 
@@ -177,3 +245,19 @@ func _on_ultimate_ended():
 			mesh.height -= 0.1
 			if (coll.shape as SphereShape3D).radius - 0.05 >= 0:
 				(coll.shape as SphereShape3D).radius -= 0.05
+
+func enable_glow(color: Color, intensity: float) -> void:
+	var material = meshi.material_override
+	if material:
+		material.emission = color  # 设置发光颜色
+		material.emission_energy_multiplier = intensity  # 设置发光强度
+
+func disable_glow() -> void:
+	var material = meshi.material_override
+	if material:
+		material.emission = Color(0, 0, 0)  # 关闭发光
+		material.emission_energy_multiplier = 0.0  # 发光强度为 0
+		
+func balance_blood():
+	if blood > 100:
+		blood = 100

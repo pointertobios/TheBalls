@@ -7,6 +7,7 @@ class_name Enemy
 @onready var player: BallPlayer = get_node("../Player")
 @onready var skill: Skill = get_node("../Player/Skill")
 @onready var Particles = $GPUParticles3D
+@onready var game: Game = get_node("..")
 
 var health_bar: HealthBar
 
@@ -22,6 +23,8 @@ var mutex = Mutex.new()
 
 # 玩家血量
 var player_blood: int
+
+var ulti_recover = 4
 
 # 敌人的移动速度
 @export var speed: float = 3.0
@@ -146,51 +149,52 @@ func _physics_process(delta: float) -> void:
 		if die_timer <= 0:
 			is_die = false
 			$Die.emitting = false
+			player.balance_blood()
 			get_life()
+	if not player.confine.is_confine:
+		# 获取玩家的水平位置（忽略 Y 轴）
+		var player_position = Vector3(player.position.x, 0, player.position.z)
+	
+		# 获取敌人的水平位置（忽略 Y 轴）
+		var enemy_position = Vector3(position.x, 0, position.z)
+	
+		# 计算敌人到玩家的方向
+		var direction = (player_position - enemy_position).normalized()
 
-	# 获取玩家的水平位置（忽略 Y 轴）
-	var player_position = Vector3(player.position.x, 0, player.position.z)
+		# 移动敌人
+		velocity = direction * speed
 
-	# 获取敌人的水平位置（忽略 Y 轴）
-	var enemy_position = Vector3(position.x, 0, position.z)
+		# 让敌人平滑转向玩家
+		var target_rotation = atan2(direction.x, direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation, rotation_speed * delta)
+		$GPUParticles3D.rotation.y = -rotation.y
 
-	# 计算敌人到玩家的方向
-	var direction = (player_position - enemy_position).normalized()
+		# 更新重力
+		gravity.update(delta)
+		position.y = gravity.at()
+		meshi.scale = gravity.zoom()
 
-	# 移动敌人
-	velocity = direction * speed
+		# 更新粒子
+		Particles.set_emission_direction(-direction)
 
-	# 让敌人平滑转向玩家
-	var target_rotation = atan2(direction.x, direction.z)
-	rotation.y = lerp_angle(rotation.y, target_rotation, rotation_speed * delta)
-	$GPUParticles3D.rotation.y = -rotation.y
-
-	# 更新重力
-	gravity.update(delta)
-	position.y = gravity.at()
-	meshi.scale = gravity.zoom()
-
-	# 更新粒子
-	Particles.set_emission_direction(-direction)
-
-	# 应用移动并检测碰撞
-	move_and_slide()
+		# 应用移动并检测碰撞
+		move_and_slide()
 
 	# 检测敌人接触技能或玩家
 	if not is_hidden and player.is_ultimate and (player.ultimate_ball.position - position).length() <= \
-	mesh.radius + player.ultimate_ball.current_radius + 0.5 and (player.ultimate_ball.position - position).length() >= \
-	mesh.radius + player.ultimate_ball.current_radius - 0.5:
+	mesh.radius + player.ultimate_ball.current_radius + 0.8 and (player.ultimate_ball.position - position).length() >= \
+	mesh.radius + player.ultimate_ball.current_radius - 0.8:
 		if !is_ultimate_attack:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-			take_damage(100)  # 开大时造成更高伤害
+			take_damage(player.ATK * player.ulti_mult)  # 开大时造成更高伤害
 			is_ultimate_attack = true
 	elif not is_hidden and player.is_skill_emitting() and (Vector3(player.position.x, 0, player.position.z) - position).length() <= \
 	skill.collision_radius and not is_attack_by_skill:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
 		player.skill_emitting()
-		take_damage(30)  # 技能造成伤害
+		take_damage(player.ATK * player.skill_mult)  # 技能造成伤害
 		is_attack_by_skill = true
 	elif not is_hidden and is_near():
 		if player.gravity.charging and player.position.y > position.y:
@@ -199,15 +203,24 @@ func _physics_process(delta: float) -> void:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
 			await get_tree().create_timer(0.4).timeout  # 等待压扁动画完成
-			take_damage(20)  # 普通撞击伤害
+			take_damage(player.ATK)  # 普通撞击伤害
 		elif can_damage_player and not $CollisionShape3D.disabled:
 			# 扣除玩家血量
-			player.blood -= 1  # 假设每次扣除1点血量
-			can_damage_player = false
-			damage_cooldown = 1.0  # 设置1秒的冷却时间
+			if not player.shield.is_safe:
+				player.blood -= 1  # 假设每次扣除1点血量
+				can_damage_player = false
+				damage_cooldown = 1.0  # 设置1秒的冷却时间
 
 # 新增：敌人受到伤害
 func take_damage(damage: float) -> void:
+	var ran_num = randf_range(1, 100)
+	var is_cri = false
+	if ran_num <= player.cri_ch:
+		is_cri = true
+		damage *= player.cri_hit
+	print(is_cri)
+	var damage_digital = DamageText.new(damage, position, is_cri)
+	game.add_child(damage_digital)
 	health -= damage
 	if health <= 0:
 		die()  # 调用 die 函数
@@ -219,7 +232,7 @@ func die() -> void:
 	$Die.emitting = true
 	$Die.set_radial_acceleration(10)
 	damage()  # 调用原有的 damage 函数处理分数和隐藏逻辑
-	if player.is_ultimate:
+	if player.is_ultimate and player.ultimate_ball.last_prase_ult:
 		player.shake_camera()  # 触发玩家相机震动
 
 # 新增：更新血条
@@ -269,6 +282,7 @@ func whiten():
 	for i in range(24):
 		await get_tree().create_timer(0.016).timeout
 		(meshi.material_override as ShaderMaterial).set_shader_parameter("whiten_factor", float(i + 1) / 24)
+
 # 渐变回原色
 func unwhiten():
 	for i in range(24):
