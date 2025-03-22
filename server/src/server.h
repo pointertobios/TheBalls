@@ -1,3 +1,0 @@
-namespace server {
-    void run();
-};
