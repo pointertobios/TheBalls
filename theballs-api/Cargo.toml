@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.97"
 bincode = "1.3.3"
+bytes = { version = "1.10.1", features = ["serde"] }
 godot = { version = "0.2.4", features = ["experimental-threads"] }
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.44.1", features = ["full"] }

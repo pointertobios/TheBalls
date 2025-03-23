@@ -123,6 +123,9 @@ name = "bytes"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cfg-if"
@@ -593,6 +596,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "bytes",
  "godot",
  "serde",
  "tokio",
@@ -604,8 +608,12 @@ dependencies = [
 name = "theballs-protocol"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bincode",
+ "bytes",
  "serde",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -614,8 +622,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "bytes",
  "clap",
  "serde",
+ "theballs-protocol",
  "tokio",
  "tracing",
  "tracing-subscriber",

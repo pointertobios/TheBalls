@@ -1,4 +1,7 @@
+mod client;
 pub mod config;
+mod game;
+mod player;
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -6,7 +9,6 @@ use std::sync::{
 };
 
 use anyhow::{Ok, Result};
-use config::Config;
 use tokio::{
     net::TcpListener,
     select,
@@ -18,6 +20,9 @@ use tokio::{
     task::{self, JoinHandle},
 };
 use tracing::{event, Level};
+
+use client::handle;
+use config::Config;
 
 pub async fn run(config: Config) -> Result<()> {
     event!(Level::INFO, "Starting server...");
@@ -47,11 +52,11 @@ pub async fn run(config: Config) -> Result<()> {
     let server = TcpListener::bind(format!("{}:{}", config.name, config.port)).await?;
     event!(
         Level::INFO,
-        "Listening on tcp://{}:{}",
+        "\nListening on tcp://{}:{}",
         config.name,
         config.port
     );
-    event!(Level::INFO, "Press Ctrl+C to stop server.");
+    event!(Level::INFO, "\nPress Ctrl+C to stop server.");
 
     let mut jh_list: Vec<JoinHandle<Result<()>>> = Vec::new();
     while running.load(Ordering::SeqCst) {
@@ -62,9 +67,7 @@ pub async fn run(config: Config) -> Result<()> {
                 let running = Arc::clone(&running);
                 let rx = ctrlc_tx.lock().await.subscribe();
                 let jh = task::spawn(async move {
-                    // handle(stream, socket_addr, running, rx).await
-                    event!(Level::INFO, "Client {:?} connected", socket_addr);
-                    Ok(())
+                    handle(stream, socket_addr, running, rx).await
                 });
                 jh_list.push(jh);
             }
@@ -83,6 +86,6 @@ pub async fn run(config: Config) -> Result<()> {
         }
     }
 
-    event!(Level::INFO, "Server exited.");
+    event!(Level::INFO, "\nServer exited.");
     Ok(())
 }
