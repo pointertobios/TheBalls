@@ -5,6 +5,18 @@ class_name BallPlayer
 @onready var meshi = $MeshInstance3D
 @onready var coll : CollisionShape3D = $CollisionShape3D
 @onready var blood_board = get_node("../Control/ProgressBar")
+@onready var recover_inf: TextureProgressBar = get_node("../Control/Control2/SkillOfRecover/TextureProgressBar")
+@onready var protect_inf: TextureProgressBar = get_node("../Control/Control2/SkillOfProtect/TextureProgressBar")
+@onready var acc_inf: TextureProgressBar = get_node("../Control/Control2/SkillOfAcc/TextureProgressBar")
+@onready var fixed_inf: TextureProgressBar = get_node("../Control/Control2/TextureRect/TextureProgressBar")
+@onready var AtkAdd_inf: TextureProgressBar = get_node("../Control/Control2/SkillOfAtkAdd/TextureProgressBar")
+@onready var cs_inf: TextureProgressBar = get_node("../Control/Control2/SkillOfAtkCs/TextureProgressBar")
+@onready var ultimate_inf: TextureProgressBar = get_node("../CanvasLayer/Control/TextureProgressBar")
+@onready var skill_e: skillofe = get_node("../skillofE")
+@onready var skillofE: skillofe = get_node("../skillofE")
+@onready var skillofEProcess: TextureProgressBar = get_node("../skillofE/Control/TextureProgressBar")
+
+
 @onready var mesh = meshi.mesh as SphereMesh
 @onready var gravity = Gravity.new(9.8, mesh.radius, 0.5)
 
@@ -49,9 +61,12 @@ var current_camera_view: int = 0  # 当前视角索引
 # 暴击率/暴击伤害
 var ATK: int = 20
 var cri_ch: float = 50
-var cri_hit: float = 1.5
+var cri_hit: float = 150
 var ulti_mult: float = 10
 var skill_mult: float = 1.5
+
+var timer: float = 0.0  # 用于记录时间
+const COUNT_INTERVAL: float = 15.0  # 每 15 秒增加一次 count
 
 func _ready() -> void:
 	# 获取或创建材质
@@ -110,6 +125,16 @@ func _process(delta: float) -> void:
 		for enemy in enemies:
 			enemy.health_bar.rotation = rotation + camera.rotation
 			
+	#timer += delta  # 累加时间
+	skillofEProcess.value += delta * 1000
+	if skillofEProcess.value == skillofEProcess.max_value:  # 如果达到 15 秒
+		if skillofE.count < 5:  # 如果 count 小于 5，增加 count
+			skillofE.count += 1
+			skillofEProcess.value = 0
+			print("Count increased to: ", skillofE.count)  # 打印当前 count 值
+			#update_spikes_visibility()  # 更新尖刺的显示状态
+		else:
+			print("Count has reached the maximum value (5).")	
 
 	# 获取输入方向
 	var input_dir = Input.get_vector("KEY_A", "KEY_D", "KEY_W", "KEY_S")
@@ -127,14 +152,16 @@ func _process(delta: float) -> void:
 	elif Input.is_action_just_released("KEY_SHIFT"):
 		gravity.release()
 	# 技能释放
-	if Input.is_action_just_pressed("KEY_E"):
+	if Input.is_action_just_pressed("KEY_E") and skillofE.count > 0 and not is_skill:
+		skillofE.count -= 1
 		is_skill = true
 		skill_timer = 0.2
 		for enemy in enemies:
 			enemy.is_attack_by_skill = false
 		enable_glow(Color(0, 0.5019, 1), 0.5)
 		skill_emitting()
-	if Input.is_action_just_pressed("KEY_Q"):  # 检测 Q 键按下
+	if Input.is_action_just_pressed("KEY_Q") and ultimate_inf.value == ultimate_inf.max_value:  # 检测 Q 键按下
+		ultimate_inf.reset()
 		is_ultimate = true
 		ultimate_ball = UltimateBall.new()
 		ultimate_ball.position = position  # 球体位置为玩家位置
@@ -142,18 +169,24 @@ func _process(delta: float) -> void:
 		ultimate_ball.ultimate_ended.connect(_on_ultimate_ended)
 		get_parent().add_child(ultimate_ball)  # 将球体添加到场景中
 		bigger()
-	if Input.is_action_just_pressed("1"):
+	if Input.is_action_just_pressed("1") and recover_inf.value:
 		recover.heal(game)
-	if Input.is_action_just_pressed("2"):
+		recover_inf.value -= 1
+	if Input.is_action_just_pressed("2") and protect_inf.value:
 		shield.activate_shield()
-	if Input.is_action_just_pressed("3"):
+		protect_inf.value -= 1
+	if Input.is_action_just_pressed("3") and acc_inf.value:
 		sprint.activate_sprint()
-	if Input.is_action_just_pressed("4"):
+		acc_inf.value -= 1
+	if Input.is_action_just_pressed("4") and fixed_inf.value:
 		confine.activate_confine()
-	if Input.is_action_just_pressed("5"):
+		fixed_inf.value -= 1
+	if Input.is_action_just_pressed("5") and AtkAdd_inf.value:
 		atk.benison()
-	if Input.is_action_just_pressed("6"):
+		AtkAdd_inf.value -= 1
+	if Input.is_action_just_pressed("6") and cs_inf.value:
 		cri.benison()
+		cs_inf.value -= 1
 
 func bigger():
 	for i in range(48):
@@ -175,7 +208,6 @@ func _physics_process(delta: float) -> void:
 
 	velocity -= velocity.normalized() * fric * \
 			sqrt(velocity.length() * 0.06)
-	#print(velocity)
 	gravity.update(delta)
 	position.y = gravity.at()
 	meshi.scale = gravity.zoom()
@@ -197,9 +229,10 @@ func _physics_process(delta: float) -> void:
 	if is_skill and is_hit:
 		if skill_timer == 0.2:
 			$Skill.emitting = true
+			is_skill = false
+			skill_e.start_falling_animation()
 		skill_timer -= delta
 		if skill_timer <= 0:
-			is_skill = false
 			$Skill.emitting = false
 		disable_glow()
 

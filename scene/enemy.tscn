@@ -1,8 +1,9 @@
 [gd_scene load_steps=16 format=3 uid="uid://be6kqpime2c1a"]
 
-[ext_resource type="Script" uid="uid://b4rusbsmjgghf" path="res://src/enemy.gd" id="1_8u16h"]
-[ext_resource type="Texture2D" uid="uid://div7dbt54k8ky" path="res://asset/enemy_taile .png" id="3_yvcfn"]
-[ext_resource type="Script" uid="uid://berhf6k2q428o" path="res://src/die.gd" id="4_b7koy"]
+[ext_resource type="Script" uid="uid://cs63eow7pnkbs" path="res://src/enemy.gd" id="1_8u16h"]
+[ext_resource type="Texture2D" uid="uid://clojj3fl5x6vj" path="res://asset/enemy_taile .png" id="3_yvcfn"]
+[ext_resource type="Script" uid="uid://byj7c1t6tkkbp" path="res://src/die.gd" id="4_b7koy"]
+[ext_resource type="AudioStream" uid="uid://c4d43w7781jgd" path="res://asset/击杀音效.mp3" id="4_yvcfn"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_b7koy"]
 
@@ -36,13 +37,10 @@ material = SubResource("ShaderMaterial_b7koy")
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_b7koy"]
 resource_local_to_scene = true
 
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_yvcfn"]
-load_path = "res://.godot/imported/enemy_taile .png-64a09b27bf7b7fb9443a782b6ce8ccf7.s3tc.ctex"
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ulb22"]
 transparency = 1
 cull_mode = 2
-albedo_texture = SubResource("CompressedTexture2D_yvcfn")
+albedo_texture = ExtResource("3_yvcfn")
 billboard_mode = 1
 
 [sub_resource type="QuadMesh" id="QuadMesh_1e552"]
@@ -118,3 +116,8 @@ draw_pass_1 = SubResource("SphereMesh_ulb22")
 script = ExtResource("4_b7koy")
 
 [node name="Sprite3D" type="Sprite3D" parent="."]
+
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("4_yvcfn")
+volume_db = 12.973
+unit_size = 8.2

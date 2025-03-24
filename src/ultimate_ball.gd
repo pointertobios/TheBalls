@@ -18,6 +18,7 @@ signal ultimate_ended
 @onready var ground: Ground = get_node("../Board")
 @onready var game: Game = get_node("../")
 @onready var player: BallPlayer = get_node("../Player")
+@onready var ulti_pic: CanvasLayer = get_node("../CanvasLayer")
 
 @onready var enemies = ($".." as Game).enemy_list
 
@@ -31,6 +32,10 @@ var one_prase_ult: bool = false
 var second_prase_ult: bool = false
 var last_prase_ult: bool = false
 
+@onready var playmusic1: AudioStreamPlayer3D = $"../Player/FirstOfSkill"  # 第一阶段音乐
+@onready var playmusic2: AudioStreamPlayer3D = $"../Player/SecondOfSkill"  # 第二阶段音乐
+@onready var playmusic3: AudioStreamPlayer3D = $"../Player/ThirdOfSkill"  # 第三阶段音乐
+#@onready var ultimate_inf: TextureProgressBar = get_node("../CanvasLayer/Control/TextureProgressBar")
 
 # 球体材质
 var material: ShaderMaterial
@@ -56,6 +61,9 @@ func _ready() -> void:
 	# 重置地板 Shader 参数
 	ground.reset_shader_parameters()
 	ground.darken()  # 调用地面 Shader
+	ulti_pic.set_ultimate_ready(true)
+	
+
 
 var re = true
 var is_second_phase: bool = false
@@ -67,11 +75,11 @@ func _process(delta: float) -> void:
 	
 	if is_exploding:
 		return
-
 	if !is_second_phase:
 		# 第一阶段：球体扩大
 		if not one_prase_ult:
 			reset_time()
+			playmusic1.play()  # 播放第一阶段音乐
 		one_prase_ult = true
 			
 		current_radius += expansion_rate * delta
@@ -99,6 +107,8 @@ func _process(delta: float) -> void:
 		# 第二阶段：球体缩小
 		if not second_prase_ult:
 			reset_time()
+			playmusic2.play()  # 播放第二阶段音乐
+			ulti_pic.set_ultimate_ready(false)
 		second_prase_ult = true
 		current_radius -= shrink_rate * delta
 		current_radius = max(current_radius, initial_radius)  # 确保半径不小于初始值
@@ -137,6 +147,7 @@ func _process(delta: float) -> void:
 func start_explosion() -> void:
 	reset_time()
 	last_prase_ult = true
+	playmusic3.play()  # 播放第三阶段音乐
 	var explosion_timer: float = 0.0
 	var slow_expansion_timer: float = 0.0
 	var target_radius: float = 8.0  # 爆炸前的目标半径
@@ -144,6 +155,7 @@ func start_explosion() -> void:
 	var brightness: float = 0.0  # 初始亮度值
 	var max_brightness: float = 1.0  # 最大亮度值
 	material.set_shader_parameter("emission_enabled", true)  # 启用发光
+	ulti_pic.pause_ultimate_animation()
 	while explosion_timer < 6.0:
 		# 缓慢增大半径（爆炸前）
 		if current_radius < target_radius and !is_exploding_fast:
@@ -175,6 +187,7 @@ func start_explosion() -> void:
 		await get_tree().process_frame  # 等待下一帧
 	is_exploding = false
 	reset_time()
+
 func reset_time():
 	for enemy in enemies:
 		enemy.is_ultimate_attack = false

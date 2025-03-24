@@ -53,6 +53,9 @@ var is_ultimate_attack: bool = false
 
 var dying_player_recover = 3
 
+@onready var death_sound_player: AudioStreamPlayer3D = $AudioStreamPlayer3D
+@onready var ultimate_inf: TextureProgressBar = get_node("../CanvasLayer/Control/TextureProgressBar")
+@onready var progress_bar: ulti_bar = get_node("../CanvasLayer/Control/TextureProgressBar")
 
 func get_life():
 	var pos = randf_range(1, random_inter)
@@ -217,7 +220,7 @@ func take_damage(damage: float) -> void:
 	var is_cri = false
 	if ran_num <= player.cri_ch:
 		is_cri = true
-		damage *= player.cri_hit
+		damage *= (player.cri_hit / 100)
 	var damage_digital = DamageText.new(damage, position, is_cri)
 	game.add_child(damage_digital)
 	health -= damage
@@ -230,7 +233,7 @@ func take_ulti_damage(damage: float) -> void:
 	var is_cri = false
 	if ran_num <= player.cri_ch:
 		is_cri = true
-		damage *= player.cri_hit
+		damage *= (player.cri_hit / 100)
 	var damage_digital = DamageText.new(damage, position, is_cri)
 	game.add_child(damage_digital)
 	health -= damage
@@ -250,6 +253,7 @@ func die() -> void:
 	damage()  # 调用原有的 damage 函数处理分数和隐藏逻辑
 	if player.is_ultimate and player.ultimate_ball.last_prase_ult:
 		player.shake_camera()  # 触发玩家相机震动
+	death_sound_player.play()
 
 # 新增：更新血条
 func update_health_bar() -> void:
@@ -278,6 +282,10 @@ func damage():
 	if is_die or is_hidden:
 		return
 	score.add(score_add)
+	random_addtion()
+	#progress_bar.value += 1
+	progress_bar.smooth_set_value(300)
+	
 
 	# 禁用碰撞检测
 	$CollisionShape3D.disabled = true
@@ -304,3 +312,19 @@ func unwhiten():
 	for i in range(24):
 		await get_tree().create_timer(0.016).timeout
 		(meshi.material_override as ShaderMaterial).set_shader_parameter("whiten_factor", 1.0 - float(i + 1) / 24)
+
+func random_addtion():
+	var ran_num = randf_range(1, 100)
+	if ran_num <= 5:
+		player.recover_inf.value = min(player.recover_inf.max_value, player.recover_inf.value + 1)
+	elif ran_num >= 15 and ran_num <= 20:
+		player.protect_inf.value = min(player.protect_inf.max_value, player.protect_inf.value + 1)
+	elif ran_num >= 25 and ran_num <= 30:
+		player.acc_inf.value = min(player.acc_inf.max_value, player.acc_inf.value + 1)
+	elif ran_num >= 35 and ran_num <= 40:
+		player.fixed_inf.value = min(player.fixed_inf.max_value, player.fixed_inf.value + 1)
+	elif ran_num >= 45 and ran_num <= 50:
+		player.AtkAdd_inf.value = min(player.AtkAdd_inf.max_value, player.AtkAdd_inf.value + 1)
+	elif ran_num >= 55 and ran_num <= 60:
+		player.cs_inf.value = min(player.cs_inf.max_value, player.cs_inf.value + 1)
+		

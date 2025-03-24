@@ -15,6 +15,8 @@ var current_enemies: int = 0
 # 生成敌人的计时器
 var spawn_timer: float = 0.0
 
+@export var max_value: float = 100.0  #// 最大值
+@export var current_value: float = 0.0  #// 当前值
 func _ready() -> void:
 	# 初始化计时器
 	spawn_timer = 3.0
