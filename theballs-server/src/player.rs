@@ -73,5 +73,5 @@ impl Player {
 }
 
 static SIGNED_CLIENT_NAMES: [u128; 1] = [
-    0x46bfd4e206ca470e0187511fd966dd53,
+    0xe2ee9b16d999349dab22b08daaf607bc,
 ];
