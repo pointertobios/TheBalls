@@ -45,7 +45,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
     let stream = connect(&worker_self, addr, &api_signal_tx).await?;
 
     let client_head = ClientHead {
-        name_md5: 0x46bfd4e206ca470e0187511fd966dd53, // jungle
+        name_md5: 0xe2ee9b16d999349dab22b08daaf607bc, // theballs
         version: Version::from(env!("CARGO_PKG_VERSION")),
         scene_id,
         player_id,

@@ -10,11 +10,27 @@ use tracing::{event, Level};
 mod api;
 mod worker;
 
-
 struct TheballsAPI;
 
 #[gdextension]
 unsafe impl ExtensionLibrary for TheballsAPI {}
+
+pub struct SafeCallable {
+    call: Callable,
+}
+
+impl SafeCallable {
+    pub fn new(call: Callable) -> Self {
+        Self { call }
+    }
+
+    pub fn call(&self, args: &[Variant]) -> Variant {
+        self.call.call(args)
+    }
+}
+
+unsafe impl Send for SafeCallable {}
+unsafe impl Sync for SafeCallable {}
 
 pub(crate) struct APISignalsReceiver {
     pub(crate) timeout: Receiver<bool>,

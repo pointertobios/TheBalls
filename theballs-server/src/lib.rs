@@ -9,6 +9,7 @@ use std::sync::{
 };
 
 use anyhow::{Ok, Result};
+use game::Scene;
 use tokio::{
     net::TcpListener,
     select,
@@ -26,6 +27,8 @@ use config::Config;
 
 pub async fn run(config: Config) -> Result<()> {
     event!(Level::INFO, "Starting server...");
+
+    let _ = Scene::new().await;
 
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = Arc::clone(&running);

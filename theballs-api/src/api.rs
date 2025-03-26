@@ -1,4 +1,9 @@
-use std::{marker::PhantomPinned, sync::Arc, time::Duration};
+use std::{
+    marker::PhantomPinned,
+    pin::{pin, Pin},
+    sync::Arc,
+    time::Duration,
+};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -16,7 +21,7 @@ use tokio::{
 };
 use tracing::{event, Level};
 
-use crate::{api_signal_channel, logging_init, worker::worker, APISignalsReceiver};
+use crate::{api_signal_channel, logging_init, worker::worker, APISignalsReceiver, SafeCallable};
 
 const PIPE_BUFFER_SIZE: usize = 1000;
 
@@ -93,28 +98,44 @@ impl APIWorker {
         res
     }
 
-    pub fn wait_timeout(&mut self) -> bool {
-        self._tokio_rt
+    pub fn wait_timeout(&mut self, call: Callable) {
+        if self
+            ._tokio_rt
             .block_on(async { self.signal_rx.timeout.recv().await })
-            .unwrap() // Promise this pipe never close during runtime
+            .unwrap()
+        {
+            call.call(&[]);
+        }
     }
 
-    pub fn wait_connection_failed(&mut self) -> Option<String> {
-        self._tokio_rt
+    pub fn wait_connection_failed(&mut self, call: Callable) {
+        if let Some(reason) = self
+            ._tokio_rt
             .block_on(async { self.signal_rx.connection_failed.recv().await })
-            .unwrap() // Promise this pipe never close during runtime
+            .unwrap()
+        {
+            call.call(&[reason.to_variant()]);
+        }
     }
 
-    pub fn wait_started(&mut self) -> bool {
-        self._tokio_rt
+    pub fn wait_started(&mut self, call: Callable) {
+        if self
+            ._tokio_rt
             .block_on(async { self.signal_rx.setup.recv().await })
-            .unwrap() // Promise this pipe never close during runtime
+            .unwrap()
+        {
+            call.call(&[]);
+        }
     }
 
-    pub fn wait_exited(&mut self) -> bool {
-        self._tokio_rt
+    pub fn wait_exited(&mut self, call: Callable) {
+        if self
+            ._tokio_rt
             .block_on(async { self.signal_rx.exited.recv().await })
             .unwrap()
+        {
+            call.call(&[]);
+        }
     }
 
     pub fn send(&mut self, pkg: ClientPackage) {
@@ -156,6 +177,8 @@ impl APIWorker {
 #[class(no_init)]
 struct TheBallsWorker {
     worker: Arc<RwLock<APIWorker>>,
+
+    _p: PhantomPinned,
 }
 
 #[godot_api]
@@ -164,35 +187,30 @@ impl TheBallsWorker {
     fn connect(host: GString, player_id: GString) -> Gd<Self> {
         let player_id = u128::from_str_radix(player_id.to_string().as_str(), 16).unwrap();
         let worker = APIWorker::connect(host.to_string(), player_id, 0);
-        Gd::from_init_fn(|_| Self { worker })
+        Gd::from_init_fn(|_| Self {
+            worker,
+            _p: PhantomPinned,
+        })
     }
 
     #[func]
     fn timeout(&mut self, call: Callable) {
-        if self.worker.blocking_write().wait_timeout() {
-            call.call(&[]);
-        }
+        self.worker.blocking_write().wait_timeout(call);
     }
 
     #[func]
     fn connection_failed(&mut self, call: Callable) {
-        if let Some(reason) = self.worker.blocking_write().wait_connection_failed() {
-            call.call(&[reason.to_variant()]);
-        }
+        self.worker.blocking_write().wait_connection_failed(call);
     }
 
     #[func]
     fn started(&mut self, call: Callable) {
-        if self.worker.blocking_write().wait_started() {
-            call.call(&[]);
-        }
+        self.worker.blocking_write().wait_started(call);
     }
 
     #[func]
     fn exited(&mut self, call: Callable) {
-        if self.worker.blocking_write().wait_exited() {
-            call.call(&[]);
-        }
+        self.worker.blocking_write().wait_exited(call);
     }
 
     #[func]
