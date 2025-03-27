@@ -1,13 +1,13 @@
 [gd_scene load_steps=25 format=3 uid="uid://b74hbui2nt53"]
 
-[ext_resource type="Shader" uid="uid://1hqpsx1y321c" path="res://shader/player.gdshader" id="1_hjaqi"]
-[ext_resource type="Texture2D" uid="uid://cxjylwlkevaos" path="res://asset/tail.png" id="2_fvtld"]
-[ext_resource type="Script" uid="uid://dpibfxe5adubj" path="res://src/player_particle.gd" id="2_hjaqi"]
-[ext_resource type="Script" uid="uid://bfu5iw74nllnj" path="res://src/hit.gd" id="4_ct4mp"]
-[ext_resource type="Script" uid="uid://bq8bxgy1purue" path="res://src/skill.gd" id="5_s4jxa"]
-[ext_resource type="AudioStream" uid="uid://bmm1euvnav3wo" path="res://asset/1.mp3" id="6_g2vtq"]
-[ext_resource type="AudioStream" uid="uid://cswdtop2q2lyn" path="res://asset/2.MP3" id="7_2fvbb"]
-[ext_resource type="AudioStream" uid="uid://bi6u1gi5oeh3v" path="res://asset/3.mp3" id="8_ml7e8"]
+[ext_resource type="Shader" uid="uid://bw3wo58xyf454" path="res://shader/player.gdshader" id="1_hjaqi"]
+[ext_resource type="Texture2D" uid="uid://f1402jy1tp7a" path="res://asset/tail.png" id="2_fvtld"]
+[ext_resource type="Script" uid="uid://byhg7pq2ks702" path="res://src/player_particle.gd" id="2_hjaqi"]
+[ext_resource type="Script" uid="uid://5yrfd1s4ejo1" path="res://src/hit.gd" id="4_ct4mp"]
+[ext_resource type="Script" uid="uid://c2n2b70qfnbjs" path="res://src/skill.gd" id="5_s4jxa"]
+[ext_resource type="AudioStream" uid="uid://btu0s5ndo3vo8" path="res://asset/1.mp3" id="6_g2vtq"]
+[ext_resource type="AudioStream" uid="uid://d23vft301pp5y" path="res://asset/2.MP3" id="7_2fvbb"]
+[ext_resource type="AudioStream" uid="uid://dfdlio6hx5pub" path="res://asset/3.mp3" id="8_ml7e8"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_s4jxa"]
 

@@ -147,7 +147,6 @@ func _process(delta: float) -> void:
 func start_explosion() -> void:
 	reset_time()
 	last_prase_ult = true
-	playmusic3.play()  # 播放第三阶段音乐
 	var explosion_timer: float = 0.0
 	var slow_expansion_timer: float = 0.0
 	var target_radius: float = 8.0  # 爆炸前的目标半径
@@ -172,6 +171,8 @@ func start_explosion() -> void:
 			
 		# 快速爆炸（当半径达到目标值后）
 		elif current_radius >= target_radius or is_exploding_fast:
+			if not is_exploding_fast:
+				playmusic3.play()  # 播放第三阶段音乐
 			is_exploding_fast = true
 			current_radius += explosion_rate * get_process_delta_time()  # 快速增大半径
 			current_alpha -= fade_rate * get_process_delta_time() * 7  # 快速减小透明度
