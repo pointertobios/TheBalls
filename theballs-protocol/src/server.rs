@@ -52,7 +52,7 @@ pub enum ServerPackage {
     SceneSync {
         objects: Vec<ObjectPack>,
     },
-    PlayerEvent(()),
+    PlayerEvent(PlayerEvent),
 }
 
 impl ServerPackage {
