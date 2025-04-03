@@ -30,7 +30,7 @@ impl From<&'static str> for Version {
 }
 
 #[repr(u8)]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ClientPackage {
     None,
     /// The interval of heartbeat is defined at

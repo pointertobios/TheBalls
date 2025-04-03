@@ -131,10 +131,6 @@ func _process(delta: float) -> void:
 		if skillofE.count < 5:  # 如果 count 小于 5，增加 count
 			skillofE.count += 1
 			skillofEProcess.value = 0
-			print("Count increased to: ", skillofE.count)  # 打印当前 count 值
-			#update_spikes_visibility()  # 更新尖刺的显示状态
-		else:
-			print("Count has reached the maximum value (5).")	
 
 	# 获取输入方向
 	var input_dir = Input.get_vector("KEY_A", "KEY_D", "KEY_W", "KEY_S")
@@ -230,7 +226,6 @@ func _physics_process(delta: float) -> void:
 		if skill_timer == 0.2:
 			$Skill.emitting = true
 			is_skill = false
-			skill_e.start_falling_animation()
 		skill_timer -= delta
 		if skill_timer <= 0:
 			$Skill.emitting = false

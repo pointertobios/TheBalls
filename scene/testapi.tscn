@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bclond7b46wwa"]
 
-[ext_resource type="Script" uid="uid://bqtq6lh3vbfls" path="res://src/testapi.gd" id="1_msbnt"]
+[ext_resource type="Script" uid="uid://dd8rrlljuvqpg" path="res://src/testapi.gd" id="1_msbnt"]
 
 [node name="Testapi" type="Node2D"]
 script = ExtResource("1_msbnt")

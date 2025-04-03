@@ -77,7 +77,7 @@ func create_circle_texture(size: int, color: Color) -> Texture2D:
 
 func _process(delta: float) -> void:
 	# 检测 E 键是否被按下
-	if Input.is_action_just_pressed("KEY_CTRL") and spike_state == SpikeState.IDLE:
+	if Input.is_action_just_pressed("KEY_E") and spike_state == SpikeState.IDLE:
 		start_falling_animation()
 	update_spikes_visibility()
 

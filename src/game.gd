@@ -22,12 +22,13 @@ func _ready() -> void:
 	spawn_timer = 3.0
 
 func _process(delta: float) -> void:
+	pass
 	# 如果当前敌人数量小于最大数量，并且计时器小于等于0，生成敌人
-	if current_enemies < max_enemies:
-		spawn_timer -= delta
-		if spawn_timer <= 0:
-			spawn_enemy()
-			spawn_timer = 3.0  # 重置计时器
+	#if current_enemies < max_enemies:
+		#spawn_timer -= delta
+		#if spawn_timer <= 0:
+			#spawn_enemy()
+			#spawn_timer = 3.0  # 重置计时器
 
 func spawn_enemy() -> void:
 	# 实例化敌人场景

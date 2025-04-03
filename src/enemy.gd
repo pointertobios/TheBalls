@@ -47,17 +47,24 @@ var random_inter: int = 100
 var health: float = 100.0
 var max_health: float = 100.0
 var is_attack_by_skill: float = false
+var true_radiu: float = false
+var radiu_v: float = 1
 
 # 用于控制大招伤害的冷却时间
 var is_ultimate_attack: bool = false
 
 var dying_player_recover = 3
 
+#受伤计时器
+@onready var hit_timer = Timer.new()  # 用于控制受伤时间
+
 @onready var death_sound_player: AudioStreamPlayer3D = $AudioStreamPlayer3D
 @onready var ultimate_inf: TextureProgressBar = get_node("../CanvasLayer/Control/TextureProgressBar")
 @onready var progress_bar: ulti_bar = get_node("../CanvasLayer/Control/TextureProgressBar")
 
+
 func get_life():
+	(Particles as VisualInstance3D).visible = false
 	var pos = randf_range(1, random_inter)
 	if pos > 90 and pos <= 100:
 		speed = 15
@@ -78,7 +85,7 @@ func get_life():
 	health = max_health
 	update_health_bar()  # 更新血条
 
-	var true_radiu: float
+	#var true_radiu: float
 	if pos > 90 and pos <= 100:
 		true_radiu = 2
 	elif pos > 80 and pos <= 90:
@@ -90,14 +97,19 @@ func get_life():
 	else:
 		true_radiu = 0.5
 	($CollisionShape3D.shape as SphereShape3D).radius = true_radiu
-	mesh.radius = true_radiu
-	mesh.height = true_radiu * 2
-	gravity.ballradius = true_radiu
+	mesh.radius = 0
+	mesh.height = 0
+	gravity.ballradius = 0
+	#mesh.radius = true_radiu
+	#mesh.height = true_radiu * 2
+	#gravity.ballradius = true_radiu
 	if health_bar:
 		health_bar.max_length = mesh.radius  # 血条长度与敌人大小相关
 		health_bar.position.y = mesh.radius + 0.2  # 血条位置在敌人头顶
 		health_bar.reset()
 		health_bar.rotation = player.rotation + player.camera.rotation
+	set_random_color()
+	
 
 func _ready() -> void:
 	meshi.mesh = meshi.mesh.duplicate()
@@ -107,25 +119,52 @@ func _ready() -> void:
 	position = Vector3(randf_range(-50, 50), 0, randf_range(-50, 50))
 	visible = true
 	$CollisionShape3D.disabled = false
-	get_life()
+	## 加载 Shader 脚本
+	var shader: Resource = load("res://shader/enemy.gdshader")
 
-	# 加载 Shader 脚本
-	var shader: Resource = load("res://shader/enemy_dying.gdshader")
-
-	# 创建 ShaderMaterial
+	## 创建 ShaderMaterial
 	var material = ShaderMaterial.new()
 	material.shader = shader
-
-	# 应用到敌人节点
+#
+	## 应用到敌人节点
 	meshi.material_override = material
+	
+	get_life()
+	
+	# 初始化计时器
+	add_child(hit_timer)
+	hit_timer.timeout.connect(_on_hit_timeout)
+	hit_timer.one_shot = true  # 只触发一次
 
 	# 动态创建血条
 	health_bar = HealthBar.new()
 	health_bar.max_length = mesh.radius  # 血条长度与敌人大小相关
 	health_bar.centered = true
 	get_tree().root.add_child(health_bar)  # 将血条添加到敌人节点
+	
+# 计时器结束时恢复颜色
+func _on_hit_timeout():
+	meshi.material_override.set_shader_parameter("hit_blend", 0.0)  # 恢复原色
 
 func _physics_process(delta: float) -> void:
+	if mesh.radius < true_radiu:
+		position.y = mesh.radius
+		mesh.radius += radiu_v * delta
+		mesh.height += radiu_v * 2 * delta
+		gravity.ballradius += radiu_v
+		meshi.material_override.set_shader_parameter("alpha", mesh.radius / true_radiu)
+		if mesh.radius >= true_radiu:
+			position.y = mesh.radius
+			health_bar.max_length = true_radiu
+			(Particles as VisualInstance3D).visible = true
+			update_health_bar()
+		else:
+			return
+	if mesh.radius > true_radiu:
+		mesh.radius = true_radiu
+		mesh.height = true_radiu * 2
+		gravity.ballradius = true_radiu
+		
 	if health_bar:
 		health_bar.global_transform.origin = global_transform.origin + Vector3(0, mesh.radius + 0.5, 0)  # 在敌人头顶显示
 	if not player:
@@ -206,7 +245,7 @@ func _physics_process(delta: float) -> void:
 			start_squash_effect()  # 调用压扁效果函数
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-			await get_tree().create_timer(0.4).timeout  # 等待压扁动画完成
+			await get_tree().create_timer(0.2).timeout  # 等待压扁动画完成
 			take_damage(player.ATK)  # 普通撞击伤害
 		elif can_damage_player and not $CollisionShape3D.disabled:
 			# 扣除玩家血量
@@ -227,7 +266,9 @@ func take_damage(damage: float) -> void:
 	if health <= 0:
 		die()  # 调用 die 函数
 	update_health_bar()
-	
+	meshi.material_override.set_shader_parameter("hit_blend", 0.5)  # 变红
+	hit_timer.start(0.4)  # 0.4秒后恢复
+
 func take_ulti_damage(damage: float) -> void:
 	var ran_num = randf_range(1, 100)
 	var is_cri = false
@@ -244,6 +285,9 @@ func take_ulti_damage(damage: float) -> void:
 		player.balance_blood()
 		die()  # 调用 die 函数
 	update_health_bar()
+	meshi.material_override.set_shader_parameter("hit_blend", 0.5)  # 变红
+	emit_signal("took_damage")  # 发出受伤信号
+	hit_timer.start(0.4)  # 0.4秒后恢复
 
 # 新增：敌人死亡
 func die() -> void:
@@ -328,3 +372,11 @@ func random_addtion():
 	elif ran_num >= 55 and ran_num <= 60:
 		player.cs_inf.value = min(player.cs_inf.max_value, player.cs_inf.value + 1)
 		
+# 随机颜色函数
+func set_random_color():
+	var random_color = Color(randf(), randf(), randf())  # 完全随机 RGB
+	set_enemy_color(random_color)
+# 动态修改颜色的函数（可在外部调用）
+func set_enemy_color(color: Color):
+	var rgb_color = Vector3(color.r, color.g, color.b)
+	meshi.material_override.set_shader_parameter("enemy_color", rgb_color)

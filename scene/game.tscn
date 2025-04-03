@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3 uid="uid://p7wu2frvs35v"]
+[gd_scene load_steps=39 format=3 uid="uid://p7wu2frvs35v"]
 
 [ext_resource type="PackedScene" uid="uid://b74hbui2nt53" path="res://scene/player.tscn" id="1_dbls1"]
 [ext_resource type="Script" uid="uid://227sl5v14rvj" path="res://src/game.gd" id="1_xlg7c"]
@@ -7,27 +7,24 @@
 [ext_resource type="Script" uid="uid://b7n2wgeuyt3gg" path="res://src/score_atk.gd" id="5_p1ry8"]
 [ext_resource type="Texture2D" uid="uid://batgh3hym3pp2" path="res://asset/skybox.jpeg" id="6_xlg7c"]
 [ext_resource type="AudioStream" uid="uid://xahhe8gbr32s" path="res://asset/背景音乐.mp3" id="8_ll5lq"]
-[ext_resource type="Script" uid="uid://7ahcrr1rixkt" path="res://scene/texture_rect.gd" id="10_ym5sv"]
+[ext_resource type="Script" uid="uid://di885cf7bxwld" path="res://src/texture_rect.gd" id="10_ym5sv"]
 [ext_resource type="Texture2D" uid="uid://dcal2m02snv1g" path="res://asset/回血.png" id="13_81276"]
 [ext_resource type="Texture2D" uid="uid://vugbjoedrjag" path="res://asset/底.png" id="14_ca6q5"]
-[ext_resource type="Script" uid="uid://ekrlbvfqiff0" path="res://scene/skill_of_recover.gd" id="14_ve786"]
+[ext_resource type="Script" uid="uid://cb3rj7j7j72qd" path="res://src/skill/skill_of_recover.gd" id="14_ve786"]
 [ext_resource type="Texture2D" uid="uid://ce1nfpwunyw2c" path="res://asset/护盾.png" id="15_ve786"]
 [ext_resource type="Texture2D" uid="uid://dv485dw6l6i8c" path="res://asset/表1.png" id="15_yerfe"]
-[ext_resource type="Script" uid="uid://djamilau0o2su" path="res://scene/skill_of_protect.gd" id="16_0lu6w"]
+[ext_resource type="Script" uid="uid://edqohfh22his" path="res://src/skill/skill_of_protect.gd" id="16_0lu6w"]
 [ext_resource type="Texture2D" uid="uid://d1ikh38qkx28" path="res://asset/mid.png" id="16_abp7u"]
 [ext_resource type="Texture2D" uid="uid://dtnytx6kp4fo5" path="res://asset/ACC.png" id="16_pp3pk"]
 [ext_resource type="Texture2D" uid="uid://dgvung1om888m" path="res://asset/ATK.png" id="18_b8t8i"]
-[ext_resource type="Script" uid="uid://bsewv2t43b3mr" path="res://scene/skill_of_acc.gd" id="18_jrd6n"]
 [ext_resource type="Texture2D" uid="uid://e2k1rj6lgei1" path="res://asset/cs.png" id="20_355h4"]
-[ext_resource type="Script" uid="uid://b7fwjoofnxybe" path="res://scene/skill_of_atk_add.gd" id="20_pp3pk"]
-[ext_resource type="Script" uid="uid://d12fegdd2cbk7" path="res://scene/skill_of_atk_cs.gd" id="22_355h4"]
+[ext_resource type="Script" uid="uid://fgvsdeoqwfa5" path="res://src/skill/skillof_e.gd" id="23_ca6q5"]
 [ext_resource type="Texture2D" uid="uid://d3m1lbsw28or" path="res://asset/限制.png" id="23_pp3pk"]
+[ext_resource type="Script" uid="uid://crhh24h7lin07" path="res://src/texture_progress_bar.gd" id="23_yerfe"]
 [ext_resource type="Texture2D" uid="uid://bharabhx6l6s5" path="res://asset/ultiball-ener.png" id="27_abp7u"]
 [ext_resource type="Script" uid="uid://dluk8jxnarbd8" path="res://src/canvas_layer.gd" id="27_yerfe"]
 [ext_resource type="Texture2D" uid="uid://b7tc4d8tyk1h" path="res://asset/ultiball-ener-inner.png" id="28_he4o3"]
-[ext_resource type="Script" uid="uid://j4pk55hkwpxv" path="res://scene/skillof_e.gd" id="28_yk3to"]
 [ext_resource type="Texture2D" uid="uid://c57gsm4keyr2k" path="res://asset/e6648c8a-9c03-4b3e-a8b8-1a15fe3b7ef2(1).png" id="29_0halo"]
-[ext_resource type="Script" uid="uid://bktvf44mx7nbu" path="res://scene/texture_progress_bar.gd" id="29_he4o3"]
 [ext_resource type="Texture2D" uid="uid://b5c2bei4t2c2h" path="res://asset/skillofEunder.png" id="30_0halo"]
 [ext_resource type="Texture2D" uid="uid://cevw1du2jx6ld" path="res://asset/skillofEbeyond.png" id="31_8p2gu"]
 
@@ -223,7 +220,6 @@ offset_right = 1092.0
 offset_bottom = 740.0
 scale = Vector2(0.1, 0.1)
 texture = ExtResource("16_pp3pk")
-script = ExtResource("18_jrd6n")
 
 [node name="Label" type="Label" parent="Control/Control2/SkillOfAcc"]
 layout_mode = 0
@@ -250,7 +246,6 @@ offset_right = 899.0
 offset_bottom = 299.0
 scale = Vector2(0.17, 0.17)
 texture = ExtResource("18_b8t8i")
-script = ExtResource("20_pp3pk")
 
 [node name="Label" type="Label" parent="Control/Control2/SkillOfAtkAdd"]
 layout_mode = 0
@@ -277,7 +272,6 @@ offset_right = 930.0
 offset_bottom = 217.0
 scale = Vector2(0.23, 0.23)
 texture = ExtResource("20_355h4")
-script = ExtResource("22_355h4")
 
 [node name="Label" type="Label" parent="Control/Control2/SkillOfAtkCs"]
 layout_mode = 0
@@ -366,10 +360,10 @@ max_value = 10000.0
 fill_mode = 5
 texture_over = ExtResource("27_abp7u")
 texture_progress = ExtResource("28_he4o3")
-script = ExtResource("29_he4o3")
+script = ExtResource("23_yerfe")
 
 [node name="skillofE" type="CanvasLayer" parent="."]
-script = ExtResource("28_yk3to")
+script = ExtResource("23_ca6q5")
 
 [node name="Control" type="Control" parent="skillofE"]
 layout_mode = 3
