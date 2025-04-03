@@ -54,3 +54,18 @@ pub trait FromTcpStream {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ObjectPack {
+    pub radius: f64,
+    pub position: [f64; 3],
+    pub velocity: [f64; 3],
+    pub acceleration: [f64; 3],
+}
+
+pub trait PackObject: Sized {
+    fn pack_object(&self) -> ObjectPack;
+    fn pack_objects_iter(objects: impl Iterator<Item = Self>) -> Vec<ObjectPack> {
+        objects.map(|o| o.pack_object()).collect()
+    }
+}

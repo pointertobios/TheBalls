@@ -1,16 +1,22 @@
 use anyhow::Result;
 use bincode::serialize;
-use theballs_protocol::{
-    client::ClientHead,
-    server::{ServerHead, StateCode},
-};
 use std::{
     collections::HashMap,
     env,
     sync::{Arc, LazyLock},
 };
+use theballs_protocol::{
+    client::ClientHead,
+    server::{ServerHead, StateCode},
+    ObjectPack, PackObject,
+};
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock};
 use tracing::{event, span, Level};
+
+use crate::game::{
+    object::{AsObject, Object},
+    scene::Scene,
+};
 
 pub async fn verify_header(head: &ClientHead, stream: &mut TcpStream) -> Result<bool> {
     let _span = span!(Level::DEBUG, "verify_header");
@@ -49,21 +55,36 @@ static PLAYER_MAP: LazyLock<RwLock<HashMap<u128, Arc<RwLock<Player>>>>> =
 
 pub struct Player {
     id: u128,
-    skin_id: Option<u64>,
-    world_id: u8,
+    scene_id: u8,
+
+    game_obj: Object,
+}
+
+impl AsObject for Player {
+    fn as_object(&self) -> &Object {
+        &self.game_obj
+    }
+
+    fn as_object_mut(&mut self) -> &mut Object {
+        &mut self.game_obj
+    }
 }
 
 impl Player {
-    pub async fn add(id: u128, world_id: u8) {
+    pub async fn add(id: u128, scene_id: u8) {
         let mut map = PLAYER_MAP.write().await;
-        map.insert(
+        let player = Arc::new(RwLock::new(Player {
             id,
-            Arc::new(RwLock::new(Player {
-                id,
-                skin_id: None,
-                world_id,
-            })),
-        );
+            scene_id,
+            game_obj: Object::default(),
+        }));
+        map.insert(id, Arc::clone(&player));
+        Scene::get(scene_id)
+            .await
+            .unwrap()
+            .write()
+            .await
+            .add_player(id, player);
     }
 
     pub async fn get(id: u128) -> Option<Arc<RwLock<Self>>> {
@@ -72,6 +93,4 @@ impl Player {
     }
 }
 
-static SIGNED_CLIENT_NAMES: [u128; 1] = [
-    0xe2ee9b16d999349dab22b08daaf607bc,
-];
+static SIGNED_CLIENT_NAMES: [u128; 1] = [0xe2ee9b16d999349dab22b08daaf607bc];

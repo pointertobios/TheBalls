@@ -9,13 +9,9 @@ use std::sync::{
 };
 
 use anyhow::{Ok, Result};
-use game::Scene;
+use game::scene::Scene;
 use tokio::{
-    net::TcpListener,
-    select,
-    signal::ctrl_c,
-    sync::{broadcast, Mutex},
-    task::{self, JoinHandle},
+    net::TcpListener, select, signal::ctrl_c, sync::broadcast, task::{self, JoinHandle}
 };
 use tracing::{event, Level};
 
@@ -28,14 +24,13 @@ use config::Config;
 pub async fn run(config: Config) -> Result<()> {
     event!(Level::INFO, "Starting server...");
 
-    let _ = Scene::new().await;
-
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = Arc::clone(&running);
 
-    let (ctrlc_tx, _) = broadcast::channel(1);
-    let ctrlc_tx = Arc::new(Mutex::new(ctrlc_tx));
-    let ctrlc_tx_clone = Arc::clone(&ctrlc_tx);
+    let (scene_sync_tx, _) = broadcast::channel(4096);
+    let scene = Scene::new(running_clone, scene_sync_tx).await;
+
+    let running_clone = Arc::clone(&running);
 
     task::spawn(async move {
         #[cfg(target_os = "linux")]
@@ -59,7 +54,6 @@ pub async fn run(config: Config) -> Result<()> {
             };
         }
         running_clone.store(false, Ordering::SeqCst);
-        let _ = ctrlc_tx_clone.lock().await.send(());
         Ok(())
     });
 
@@ -74,18 +68,17 @@ pub async fn run(config: Config) -> Result<()> {
 
     let mut jh_list: Vec<JoinHandle<Result<()>>> = Vec::new();
     while running.load(Ordering::SeqCst) {
-        let mut guard = ctrlc_tx.lock().await.subscribe();
         select! {
             peer = server.accept() => {
                 let (stream, socket_addr) = peer?;
                 let running = Arc::clone(&running);
-                let rx = ctrlc_tx.lock().await.subscribe();
+                let scene_sync_rx = scene.read().await.register_receiver();
                 let jh = task::spawn(async move {
-                    handle(stream, socket_addr, running, rx).await
+                    handle(stream, socket_addr, running, scene_sync_rx).await
                 });
                 jh_list.push(jh);
             }
-            _ = guard.recv() => running.store(false, Ordering::SeqCst),
+            _ = ctrl_c() => running.store(false, Ordering::SeqCst),
         }
 
         // clean up here so that when waiting for clients' connection

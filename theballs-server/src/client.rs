@@ -12,20 +12,21 @@ use bincode::{deserialize, serialize};
 use bytes::BytesMut;
 use theballs_protocol::{
     client::{ClientHead, ClientPackage},
-    server::{ServerHead, ServerPackage, StateCode},
+    server::{PlayerEvent, ServerHead, ServerPackage, StateCode},
     FromTcpStream, Pack, HEARTBEAT_DURATION,
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
     select,
+    signal::ctrl_c,
     sync::broadcast::Receiver,
     time::interval,
 };
 use tracing::{event, Level};
 
 use crate::{
-    game::Scene,
+    game::scene::Scene,
     player::{self, Player},
 };
 
@@ -33,7 +34,7 @@ pub async fn handle(
     mut stream: TcpStream,
     addr: SocketAddr,
     running: Arc<AtomicBool>,
-    mut ctrlc_rx: Receiver<()>,
+    mut scene_sync_rx: Receiver<ServerPackage>,
 ) -> Result<()> {
     let head = headers_exchange(&mut stream).await?;
     event!(Level::INFO, ?head.player_id, "\nNew connection from {}", addr);
@@ -62,6 +63,9 @@ pub async fn handle(
                     None => (),
                 }
             }
+            Ok(pkg) = scene_sync_rx.recv() => {
+                stream.write_all(&pkg.pack()?).await?;
+            }
             _ = heartbeat_interval.tick() => {
                 let dur = SystemTime::now().duration_since(last_beat)?;
                 if dur > HEARTBEAT_DURATION * 4 {
@@ -69,14 +73,14 @@ pub async fn handle(
                     break;
                 }
             }
-            Ok(()) = ctrlc_rx.recv() => {
+            _ = ctrl_c() => {
                 stream.write_all(&ServerPackage::Exit.pack()?).await?;
                 break;
             }
         }
     }
 
-    event!(Level::TRACE, ?head.player_id, "\nServing thread exited");
+    event!(Level::INFO, ?head.player_id, "\nServing thread exited");
     Ok(())
 }
 
@@ -86,6 +90,15 @@ async fn package_handle(scene: &mut Scene, cpkg: ClientPackage) -> Result<Option
 
     let spkg = match cpkg {
         ClientPackage::TimeDeviation => ServerPackage::TimeDeviation(now),
+        ClientPackage::PlayerEvent(event) => match event {
+            PlayerEvent::Enter(name) => {
+                scene
+                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(name)))
+                    .await?;
+                ServerPackage::None
+            }
+            _ => ServerPackage::None,
+        },
         _ => ServerPackage::None,
     };
     Ok(Some(spkg))
@@ -140,7 +153,7 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
             event!(Level::TRACE, ?head.player_id, "\n{:?}", res_);
             return Err(anyhow!("No player id"));
         };
-        if let None = world.players().get(&head.player_id) {
+        if let None = world.objects().get(&head.player_id) {
             let res_ = ServerHead {
                 state: StateCode::PlayerIdNotFoundInScene,
                 scene_id: head.scene_id,

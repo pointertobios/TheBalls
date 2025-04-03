@@ -9,7 +9,7 @@ use anyhow::Result;
 use godot::prelude::*;
 use theballs_protocol::{
     client::ClientPackage,
-    server::{ServerPackage, StateCode},
+    server::{PlayerEvent, ServerPackage, StateCode},
 };
 use tokio::{
     runtime::{self, Runtime},
@@ -171,6 +171,28 @@ impl APIWorker {
     pub fn delay(&self) -> i64 {
         self.delay.as_millis() as i64
     }
+
+    pub fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
+        for i in 0..self.api_recv_buffer.len() {
+            if self.api_recv_buffer[i].discriminant() == type_id {
+                return Some(self.api_recv_buffer.remove(i));
+            }
+        }
+        while let Some(pkg) = self
+            ._tokio_rt
+            .block_on(async { self.sync_recv_rx.recv().await })
+        {
+            if pkg.discriminant() == type_id {
+                return Some(pkg);
+            }
+            self.api_recv_buffer.push(pkg);
+        }
+        None
+    }
+
+    pub fn player_enter(&mut self, name: String) {
+        self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter(name)));
+    }
 }
 
 #[derive(GodotClass)]
@@ -236,5 +258,29 @@ impl TheBallsWorker {
     #[func]
     fn delay(&self) -> i64 {
         self.worker.blocking_read().delay()
+    }
+
+    #[func]
+    fn player_enter(&mut self, name: GString) {
+        self.worker.blocking_write().player_enter(name.to_string());
+    }
+
+    #[func]
+    fn recv_player_enter(&mut self, call: Callable) {
+        match self
+            .worker
+            .blocking_write()
+            .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
+        {
+            Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(name))) => {
+                call.call(&[name.to_variant()]);
+            }
+            p => {
+                self.worker
+                    .blocking_write()
+                    .api_recv_buffer
+                    .push(p.unwrap());
+            }
+        }
     }
 }

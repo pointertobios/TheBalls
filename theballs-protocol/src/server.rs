@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{FromTcpStream, Pack};
+use crate::{FromTcpStream, ObjectPack, Pack};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerHead {
@@ -35,7 +35,7 @@ impl ToString for StateCode {
 }
 
 #[repr(u8)]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ServerPackage {
     None,
     /// For client to calculate the time deviation between client and server.
@@ -49,16 +49,23 @@ pub enum ServerPackage {
     TimeDeviation(SystemTime),
     InnerError,
     Exit,
-    WorldList(Vec<u8>),
-    WorldName {
-        name: String,
+    SceneSync {
+        objects: Vec<ObjectPack>,
     },
     PlayerEvent(PlayerEvent),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+impl ServerPackage {
+    pub fn discriminant(&self) -> u8 {
+        unsafe { *(self as *const Self as *const u8) }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// 定义一个玩家事件枚举
 pub enum PlayerEvent {
+    Enter(String),
+    None,
 }
 
 impl Default for ServerPackage {
