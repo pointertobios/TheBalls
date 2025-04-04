@@ -55,7 +55,7 @@ pub async fn handle(
                     }
                     Some(ClientPackage::Exit) => break,
                     Some(p) => {
-                        let p = package_handle(&mut *scene.write().await, p).await?;
+                        let p = package_handle(&head, &mut *scene.write().await, p).await?;
                         if let Some(p) = p {
                             stream.write_all(&p.pack()?).await?;
                         }
@@ -80,23 +80,41 @@ pub async fn handle(
         }
     }
 
+    Player::exit(head.player_id).await;
+
     event!(Level::INFO, ?head.player_id, "\nServing thread exited");
     Ok(())
 }
 
 /// This function don't handle `ClientPackage::HeartBeat` and `ClientPackage::Exit`
-async fn package_handle(scene: &mut Scene, cpkg: ClientPackage) -> Result<Option<ServerPackage>> {
+async fn package_handle(
+    head: &ClientHead,
+    scene: &mut Scene,
+    cpkg: ClientPackage,
+) -> Result<Option<ServerPackage>> {
     let now = SystemTime::now();
 
     let spkg = match cpkg {
+
         ClientPackage::TimeDeviation => ServerPackage::TimeDeviation(now),
+
         ClientPackage::PlayerEvent(event) => match event {
             PlayerEvent::Enter(name) => {
+                let res = Player::list().await;
+
+                Player::get(head.player_id)
+                    .await
+                    .unwrap()
+                    .write()
+                    .await
+                    .set_name(name.clone());
                 scene
                     .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(name)))
                     .await?;
-                ServerPackage::None
+
+                ServerPackage::PlayerList(res)
             }
+
             _ => ServerPackage::None,
         },
         _ => ServerPackage::None,

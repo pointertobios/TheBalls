@@ -1,6 +1,9 @@
 #![allow(static_mut_refs)]
 
-use std::panic;
+use std::{
+    ops::{Deref, DerefMut},
+    panic,
+};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -24,15 +27,29 @@ impl SafeCallable {
         Self { call }
     }
 
-    pub fn call(&self, args: &[Variant]) -> Variant {
-        self.call.call(args)
+    pub fn call(&self, args: &[Variant]) {
+        self.call.call_deferred(args)
     }
 }
 
 unsafe impl Send for SafeCallable {}
 unsafe impl Sync for SafeCallable {}
 
-pub struct SafePointer<T>(pub *mut T);
+pub struct SafePointer<T>(*mut T);
+
+impl<T> Deref for SafePointer<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
+    }
+}
+
+impl<T> DerefMut for SafePointer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.0 }
+    }
+}
 
 unsafe impl<T> Send for SafePointer<T> {}
 unsafe impl<T> Sync for SafePointer<T> {}

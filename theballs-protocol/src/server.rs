@@ -52,6 +52,7 @@ pub enum ServerPackage {
     SceneSync {
         objects: Vec<ObjectPack>,
     },
+    PlayerList(Vec<(u128, String)>), // (uuid, name)
     PlayerEvent(PlayerEvent),
 }
 

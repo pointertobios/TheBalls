@@ -95,6 +95,10 @@ impl Scene {
     pub fn objects_mut(&mut self) -> &mut HashMap<u128, Arc<RwLock<dyn AsObject>>> {
         &mut self.objects
     }
+
+    pub fn remove(&mut self, uuid: u128) {
+        self.objects.remove(&uuid);
+    }
 }
 
 static mut SCENE_MAP: LazyLock<RwLock<HashMap<u8, Arc<RwLock<Scene>>>>> =

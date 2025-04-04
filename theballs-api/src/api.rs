@@ -1,9 +1,4 @@
-use std::{
-    marker::PhantomPinned,
-    pin::{pin, Pin},
-    sync::Arc,
-    time::Duration,
-};
+use std::{marker::PhantomPinned, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -103,8 +98,8 @@ impl APIWorker {
     pub fn wait_timeout(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
-            let selfp = selfp;
-            if unsafe { (*selfp.0).signal_rx.timeout.recv().await }.unwrap() {
+            let mut selfp = selfp;
+            if selfp.signal_rx.timeout.recv().await.unwrap() {
                 call.call(&[]);
             }
         });
@@ -113,10 +108,8 @@ impl APIWorker {
     pub fn wait_connection_failed(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
-            let selfp = selfp;
-            if let Some(Some(reason)) =
-                unsafe { (*selfp.0).signal_rx.connection_failed.recv().await }
-            {
+            let mut selfp = selfp;
+            if let Some(Some(reason)) = selfp.signal_rx.connection_failed.recv().await {
                 call.call(&[reason.to_variant()]);
             }
         });
@@ -125,8 +118,8 @@ impl APIWorker {
     pub fn wait_started(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
-            let selfp = selfp;
-            if unsafe { (*selfp.0).signal_rx.setup.recv().await }.unwrap() {
+            let mut selfp = selfp;
+            if selfp.signal_rx.setup.recv().await.unwrap() {
                 call.call(&[]);
             }
         });
@@ -135,8 +128,8 @@ impl APIWorker {
     pub fn wait_exited(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
-            let selfp = selfp;
-            if unsafe { (*selfp.0).signal_rx.exited.recv().await }.unwrap() {
+            let mut selfp = selfp;
+            if selfp.signal_rx.exited.recv().await.unwrap() {
                 call.call(&[]);
             }
         });
@@ -199,19 +192,38 @@ impl APIWorker {
     pub fn recv_player_enter(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
-            let selfp = selfp;
-            while let Some(pkg) = unsafe {
-                (*selfp.0)
-                    .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
-                    .await
-            } {
+            let mut selfp = selfp;
+            while let Some(pkg) = selfp
+                .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
+                .await
+            {
                 match pkg {
                     ServerPackage::PlayerEvent(PlayerEvent::Enter(name)) => {
                         event!(Level::INFO, "Player enter: {}", name);
                         call.call(&[name.to_variant()]);
                     }
-                    pkg => unsafe { (*selfp.0).api_recv_buffer.push(pkg) },
+                    pkg => selfp.api_recv_buffer.push(pkg),
                 }
+            }
+        });
+    }
+
+    pub fn recv_player_list(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            while let Some(ServerPackage::PlayerList(list)) = selfp
+                .pkg_recv(ServerPackage::PlayerList(vec![]).discriminant())
+                .await
+            {
+                let (ids, names): (Vec<u128>, Vec<String>) = list.into_iter().unzip();
+                let ids: Array<GString> = ids
+                    .into_iter()
+                    .map(|id| GString::from(id.to_string()))
+                    .collect();
+                let names: Array<GString> =
+                    names.into_iter().map(|name| GString::from(name)).collect();
+                call.call(&[ids.to_variant(), names.to_variant()]);
             }
         });
     }
@@ -295,5 +307,11 @@ impl TheBallsWorker {
     fn recv_player_enter(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_enter(call);
+    }
+
+    #[func]
+    fn recv_player_list(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
+        self.worker.blocking_write().recv_player_list(call);
     }
 }

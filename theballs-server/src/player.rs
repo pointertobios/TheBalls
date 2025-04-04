@@ -56,6 +56,7 @@ static PLAYER_MAP: LazyLock<RwLock<HashMap<u128, Arc<RwLock<Player>>>>> =
 pub struct Player {
     id: u128,
     scene_id: u8,
+    name: String,
 
     game_obj: Object,
 }
@@ -71,11 +72,18 @@ impl AsObject for Player {
 }
 
 impl Player {
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+}
+
+impl Player {
     pub async fn add(id: u128, scene_id: u8) {
         let mut map = PLAYER_MAP.write().await;
         let player = Arc::new(RwLock::new(Player {
             id,
             scene_id,
+            name: String::new(),
             game_obj: Object::default(),
         }));
         map.insert(id, Arc::clone(&player));
@@ -85,6 +93,26 @@ impl Player {
             .write()
             .await
             .add_player(id, player);
+    }
+
+    pub async fn exit(id: u128) {
+        let mut map = PLAYER_MAP.write().await;
+        let p = map.remove(&id).unwrap();
+        Scene::get(p.read().await.scene_id)
+            .await
+            .unwrap()
+            .write()
+            .await
+            .remove(id);
+    }
+
+    pub async fn list() -> Vec<(u128, String)> {
+        let map = PLAYER_MAP.read().await;
+        let mut res = Vec::new();
+        for (id, p) in map.iter() {
+            res.push((*id, p.read().await.name.clone()));
+        }
+        res
     }
 
     pub async fn get(id: u128) -> Option<Arc<RwLock<Self>>> {
