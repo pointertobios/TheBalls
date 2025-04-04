@@ -19,9 +19,6 @@ func _init() -> void:
 	worker.recv_player_enter(func(name):
 		print("player ", name, " entered")
 	)
-	worker.recv_player_enter(func(name):
-		print("player ", name, " entered")
-	)
 
 func _exit_tree() -> void:
 	worker.exit()

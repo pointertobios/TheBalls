@@ -32,6 +32,11 @@ impl SafeCallable {
 unsafe impl Send for SafeCallable {}
 unsafe impl Sync for SafeCallable {}
 
+pub struct SafePointer<T>(pub *mut T);
+
+unsafe impl<T> Send for SafePointer<T> {}
+unsafe impl<T> Sync for SafePointer<T> {}
+
 pub(crate) struct APISignalsReceiver {
     pub(crate) timeout: Receiver<bool>,
     pub(crate) connection_failed: Receiver<Option<String>>,

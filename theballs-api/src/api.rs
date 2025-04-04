@@ -21,7 +21,9 @@ use tokio::{
 };
 use tracing::{event, Level};
 
-use crate::{api_signal_channel, logging_init, worker::worker, APISignalsReceiver, SafeCallable};
+use crate::{
+    api_signal_channel, logging_init, worker::worker, APISignalsReceiver, SafeCallable, SafePointer,
+};
 
 const PIPE_BUFFER_SIZE: usize = 1000;
 
@@ -98,44 +100,46 @@ impl APIWorker {
         res
     }
 
-    pub fn wait_timeout(&mut self, call: Callable) {
-        if self
-            ._tokio_rt
-            .block_on(async { self.signal_rx.timeout.recv().await })
-            .unwrap()
-        {
-            call.call(&[]);
-        }
+    pub fn wait_timeout(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let selfp = selfp;
+            if unsafe { (*selfp.0).signal_rx.timeout.recv().await }.unwrap() {
+                call.call(&[]);
+            }
+        });
     }
 
-    pub fn wait_connection_failed(&mut self, call: Callable) {
-        if let Some(reason) = self
-            ._tokio_rt
-            .block_on(async { self.signal_rx.connection_failed.recv().await })
-            .unwrap()
-        {
-            call.call(&[reason.to_variant()]);
-        }
+    pub fn wait_connection_failed(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let selfp = selfp;
+            if let Some(Some(reason)) =
+                unsafe { (*selfp.0).signal_rx.connection_failed.recv().await }
+            {
+                call.call(&[reason.to_variant()]);
+            }
+        });
     }
 
-    pub fn wait_started(&mut self, call: Callable) {
-        if self
-            ._tokio_rt
-            .block_on(async { self.signal_rx.setup.recv().await })
-            .unwrap()
-        {
-            call.call(&[]);
-        }
+    pub fn wait_started(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let selfp = selfp;
+            if unsafe { (*selfp.0).signal_rx.setup.recv().await }.unwrap() {
+                call.call(&[]);
+            }
+        });
     }
 
-    pub fn wait_exited(&mut self, call: Callable) {
-        if self
-            ._tokio_rt
-            .block_on(async { self.signal_rx.exited.recv().await })
-            .unwrap()
-        {
-            call.call(&[]);
-        }
+    pub fn wait_exited(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let selfp = selfp;
+            if unsafe { (*selfp.0).signal_rx.exited.recv().await }.unwrap() {
+                call.call(&[]);
+            }
+        });
     }
 
     pub fn send(&mut self, pkg: ClientPackage) {
@@ -172,17 +176,15 @@ impl APIWorker {
         self.delay.as_millis() as i64
     }
 
-    pub fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
+    pub async fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
         for i in 0..self.api_recv_buffer.len() {
             if self.api_recv_buffer[i].discriminant() == type_id {
                 return Some(self.api_recv_buffer.remove(i));
             }
         }
-        while let Some(pkg) = self
-            ._tokio_rt
-            .block_on(async { self.sync_recv_rx.recv().await })
-        {
+        while let Some(pkg) = self.sync_recv_rx.recv().await {
             if pkg.discriminant() == type_id {
+                event!(Level::INFO, "Found package: {:?}", pkg);
                 return Some(pkg);
             }
             self.api_recv_buffer.push(pkg);
@@ -192,6 +194,26 @@ impl APIWorker {
 
     pub fn player_enter(&mut self, name: String) {
         self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter(name)));
+    }
+
+    pub fn recv_player_enter(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let selfp = selfp;
+            while let Some(pkg) = unsafe {
+                (*selfp.0)
+                    .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
+                    .await
+            } {
+                match pkg {
+                    ServerPackage::PlayerEvent(PlayerEvent::Enter(name)) => {
+                        event!(Level::INFO, "Player enter: {}", name);
+                        call.call(&[name.to_variant()]);
+                    }
+                    pkg => unsafe { (*selfp.0).api_recv_buffer.push(pkg) },
+                }
+            }
+        });
     }
 }
 
@@ -217,21 +239,25 @@ impl TheBallsWorker {
 
     #[func]
     fn timeout(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
         self.worker.blocking_write().wait_timeout(call);
     }
 
     #[func]
     fn connection_failed(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
         self.worker.blocking_write().wait_connection_failed(call);
     }
 
     #[func]
     fn started(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
         self.worker.blocking_write().wait_started(call);
     }
 
     #[func]
     fn exited(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
         self.worker.blocking_write().wait_exited(call);
     }
 
@@ -267,20 +293,7 @@ impl TheBallsWorker {
 
     #[func]
     fn recv_player_enter(&mut self, call: Callable) {
-        match self
-            .worker
-            .blocking_write()
-            .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
-        {
-            Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(name))) => {
-                call.call(&[name.to_variant()]);
-            }
-            p => {
-                self.worker
-                    .blocking_write()
-                    .api_recv_buffer
-                    .push(p.unwrap());
-            }
-        }
+        let call = SafeCallable::new(call);
+        self.worker.blocking_write().recv_player_enter(call);
     }
 }
