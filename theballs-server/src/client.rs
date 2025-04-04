@@ -101,6 +101,7 @@ async fn package_handle(
         ClientPackage::PlayerEvent(event) => match event {
             PlayerEvent::Enter(name) => {
                 let res = Player::list().await;
+                event!(Level::DEBUG, "Send player list: {:?}", res);
 
                 Player::get(head.player_id)
                     .await

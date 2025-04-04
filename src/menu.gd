@@ -76,22 +76,27 @@ func _on_nickname_submitted(nickname: String):
 		print("connectiong started")
 	)
 	worker.player_enter(nickname)
+	worker.recv_player_list(func (ids, names):
+		for name in names:
+			if len(name) == 0:
+				continue
+			player_list.append(name)
+		waiting_label.text = "等待玩家加入 (" + str(len(player_list)) + "/3)..."
+		print("player_list: ", player_list)
+	)
 	worker.recv_player_enter(func (name):
-		call_deferred("_recv_player_enter", name)
+		player_list.append(name)
+		var l = len(player_list)
+		waiting_label.text = "等待玩家加入 (" + str(l) +  "/3)..."
+		if l >= 3:
+			game_start.emit()
 	)
 	
 	nickname_input.visible = false
 	waiting_panel.visible = true
-	waiting_label.text = "等待玩家加入 (1/3)..."
+	waiting_label.text = "等待玩家加入 (" + str(len(player_list)) + "/3)..."
 	
 	await _start_game()
-
-func _recv_player_enter(name: String):
-	player_list.append(name)
-	var l = len(player_list)
-	waiting_label.text = "等待玩家加入 (" + str(l) +  "/3)..."
-	if l == 3:
-		game_start.emit()
 
 func _update_waiting_ui(msg: String):
 	waiting_label.text = msg

@@ -1,4 +1,4 @@
-use std::{marker::PhantomPinned, sync::Arc, time::Duration};
+use std::{marker::PhantomPinned, ptr::addr_of, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -13,6 +13,7 @@ use tokio::{
         RwLock,
     },
     task::JoinHandle,
+    time,
 };
 use tracing::{event, Level};
 
@@ -41,7 +42,7 @@ pub struct APIWorker {
 
     pub(crate) signal_rx: APISignalsReceiver,
 
-    sync_recv_rx: Receiver<ServerPackage>,
+    sync_recv_rx: RwLock<Receiver<ServerPackage>>,
     api_recv_buffer: Vec<ServerPackage>,
 
     _tokio_rt: Runtime,
@@ -81,7 +82,7 @@ impl APIWorker {
             ping: Duration::from_secs(0),
             delay: Duration::from_secs(0),
             signal_rx,
-            sync_recv_rx,
+            sync_recv_rx: RwLock::new(sync_recv_rx),
             api_recv_buffer: Vec::new(),
             _tokio_rt: tokio_rt,
             _p: PhantomPinned,
@@ -169,20 +170,44 @@ impl APIWorker {
         self.delay.as_millis() as i64
     }
 
-    pub async fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
+    pub fn get_pkg_from_buffer(&mut self, type_id: u8) -> Option<ServerPackage> {
         for i in 0..self.api_recv_buffer.len() {
             if self.api_recv_buffer[i].discriminant() == type_id {
                 return Some(self.api_recv_buffer.remove(i));
             }
         }
-        while let Some(pkg) = self.sync_recv_rx.recv().await {
-            if pkg.discriminant() == type_id {
-                event!(Level::INFO, "Found package: {:?}", pkg);
-                return Some(pkg);
-            }
-            self.api_recv_buffer.push(pkg);
-        }
         None
+    }
+
+    pub async fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
+        if let Some(pkg) = self.get_pkg_from_buffer(type_id) {
+            return Some(pkg);
+        }
+        loop {
+            if let Some(res) = {
+                let mut rx_g = unsafe { &*addr_of!(self.sync_recv_rx) }.write().await;
+                let res = if let Some(pkg) = self.get_pkg_from_buffer(type_id) {
+                    Some(pkg)
+                } else {
+                    if let Some(pkg) = rx_g.recv().await {
+                        if pkg.discriminant() == type_id {
+                            event!(Level::INFO, "Found package: {:?}", pkg);
+                            Some(pkg)
+                        } else {
+                            self.api_recv_buffer.push(pkg);
+                            None
+                        }
+                    } else {
+                        return None;
+                    }
+                };
+                res
+            } {
+                return Some(res);
+            } else {
+                time::sleep(Duration::from_millis(1)).await;
+            }
+        }
     }
 
     pub fn player_enter(&mut self, name: String) {
@@ -193,16 +218,16 @@ impl APIWorker {
         let selfp = SafePointer(self as *mut APIWorker);
         self._tokio_rt.spawn(async move {
             let mut selfp = selfp;
-            while let Some(pkg) = selfp
-                .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
-                .await
-            {
-                match pkg {
-                    ServerPackage::PlayerEvent(PlayerEvent::Enter(name)) => {
-                        event!(Level::INFO, "Player enter: {}", name);
+            loop {
+                match selfp
+                    .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
+                    .await
+                {
+                    Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(name))) => {
                         call.call(&[name.to_variant()]);
                     }
-                    pkg => selfp.api_recv_buffer.push(pkg),
+                    Some(pkg) => selfp.api_recv_buffer.push(pkg),
+                    None => break,
                 }
             }
         });
