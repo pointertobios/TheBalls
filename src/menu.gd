@@ -8,13 +8,14 @@ extends Node2D
 @onready var waiting_label = $UI/WaitingPanel/Label
 @onready var title = $UI/Background/Label
 
-var server_api: ServerAPI
+var worker: TheBallsWorker
 var player_uuid: String = ""
 
+var player_list = []
+
+signal game_start
+
 func _ready():
-	server_api = ServerAPI.new()
-	add_child(server_api)
-	server_api.ready_to_start.connect(_start_game)
 	# 初始化UI状态
 	start_button.visible = true
 	nickname_input.visible = false
@@ -23,7 +24,6 @@ func _ready():
 	# 连接信号
 	start_button.pressed.connect(_on_start_pressed)
 	nickname_input.text_submitted.connect(_on_nickname_submitted)
-	server_api.playerevent(_update_waiting_ui)
 	
 	# 设置UI样式
 	_setup_ui_style()
@@ -64,16 +64,40 @@ func _on_nickname_submitted(nickname: String):
 	
 	player_uuid = nickname.md5_text()
 	print(player_uuid)
-	server_api.register_player(player_uuid, nickname)
+
+	worker = TheBallsWorker.connect("127.0.0.1:3000", player_uuid)
+	worker.connection_failed(func (e):
+		print(e)
+	)
+	worker.timeout(func ():
+		print("connection timeout")
+	)
+	worker.started(func ():
+		print("connectiong started")
+	)
+	worker.player_enter(nickname)
+	worker.recv_player_enter(func (name):
+		call_deferred("_recv_player_enter", name)
+	)
 	
 	nickname_input.visible = false
 	waiting_panel.visible = true
 	waiting_label.text = "等待玩家加入 (1/3)..."
+	
+	await _start_game()
+
+func _recv_player_enter(name: String):
+	player_list.append(name)
+	var l = len(player_list)
+	waiting_label.text = "等待玩家加入 (" + str(l) +  "/3)..."
+	if l == 3:
+		game_start.emit()
 
 func _update_waiting_ui(msg: String):
 	waiting_label.text = msg
 	
 func _start_game():
+	await game_start
 	var game = load("res://scene/game.tscn").instantiate()
 	get_tree().root.add_child(game)
 	queue_free()
