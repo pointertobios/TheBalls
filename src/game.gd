@@ -11,9 +11,9 @@ var player_scene: Resource = load("res://scene/player.tscn")
 @export var max_enemies: int = 5
 @export var max_value: float = 100.0  #// 最大值
 @export var current_value: float = 0.0  #// 当前值
-var player_list = {}
+var player_list: Dictionary = {}
 
-
+var player_uuid: String = ""
 
 var enemy_list = []
 
@@ -33,13 +33,32 @@ func set_status(status: bool):
 
 var menu_exited = false
 
+func start_get_player_list(call: Callable):
+	worker.recv_player_list(func (uuids, names):
+		for i in range(len(uuids)):
+			player_list[uuids[i]] = player_scene.instantiate()
+			player_list[uuids[i]].uuid = uuids[i]
+			add_child(player_list[uuids[i]])
+		if not menu_exited:
+			call.call(uuids, names)
+	)
+
 func start_get_player_enter(call: Callable):
 	worker.recv_player_enter(func (uuid: String, name: String):
 		player_list[uuid] = player_scene.instantiate()
+		player_list[uuid].uuid = uuid
+		add_child(player_list[uuid])
 		if not menu_exited:
 			call.call(uuid, name)
 	)
 
+func start_get_player_exit(call: Callable):
+	worker.recv_player_exit(func (uuid: String):
+		remove_child(player_list[uuid])
+		player_list.erase(uuid)
+		if not menu_exited:
+			call.call(uuid)
+	)
 
 func game_start():
 	is_running = true
@@ -92,3 +111,7 @@ func spawn_enemy() -> void:
 func _on_enemy_died() -> void:
 	# 当敌人死亡时，减少当前敌人数量
 	current_enemies -= 1
+
+func _exit_tree() -> void:
+	if worker:
+		worker.exit()

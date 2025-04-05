@@ -14,8 +14,8 @@ func _init() -> void:
 	worker.started(func():
 		print("started")
 	)
-	worker.player_enter("player1")
-	worker.player_enter("player2")
+	worker.player_enter("0", "player1")
+	worker.player_enter("1", "player2")
 	worker.recv_player_enter(func(name):
 		print("player ", name, " entered")
 	)

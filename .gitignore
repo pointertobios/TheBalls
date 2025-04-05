@@ -4,6 +4,7 @@
 .vscode/
 *.import
 *.uid
+*.tmp
 build/
 .cache
 target/

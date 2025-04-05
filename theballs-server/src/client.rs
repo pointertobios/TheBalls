@@ -53,7 +53,10 @@ pub async fn handle(
                     Some(ClientPackage::HeartBeat) => {
                         last_beat = SystemTime::now();
                     }
-                    Some(ClientPackage::Exit) => break,
+                    Some(ClientPackage::Exit) => {
+                        scene.write().await.broadcast(ServerPackage::PlayerEvent(PlayerEvent::Exit(head.player_id))).await?;
+                        break;
+                    }
                     Some(p) => {
                         let p = package_handle(&head, &mut *scene.write().await, p).await?;
                         if let Some(p) = p {
@@ -123,7 +126,10 @@ async fn package_handle(
                     .await
                     .set_name(name.clone());
                 scene
-                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(head.player_id, name)))
+                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(
+                        head.player_id,
+                        name,
+                    )))
                     .await?;
 
                 ServerPackage::PlayerList(res)

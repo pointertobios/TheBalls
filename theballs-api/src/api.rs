@@ -10,10 +10,12 @@ use theballs_protocol::{
 use tokio::{
     runtime::{self, Runtime},
     sync::{
+        broadcast,
         mpsc::{self, Receiver, Sender},
         RwLock,
     },
     task::JoinHandle,
+    time::sleep,
 };
 use tracing::{event, Level};
 
@@ -42,8 +44,8 @@ pub struct APIWorker {
 
     pub(crate) signal_rx: APISignalsReceiver,
 
-    sync_recv_rx: RwLock<Receiver<ServerPackage>>,
-    api_recv_buffer: Vec<ServerPackage>,
+    api_recv_buffer: Arc<RwLock<Vec<ServerPackage>>>,
+    recv_notifier: Arc<RwLock<broadcast::Sender<()>>>,
 
     _tokio_rt: Runtime,
 
@@ -55,7 +57,7 @@ impl APIWorker {
         logging_init();
         let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
         let (worker_self_tx, worker_self_rx) = mpsc::channel(1);
-        let (sync_recv_tx, sync_recv_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
+        let (sync_recv_tx, mut sync_recv_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
         let (signal_tx, signal_rx) = api_signal_channel(PIPE_BUFFER_SIZE);
         let tokio_rt = runtime::Builder::new_multi_thread()
             .enable_all()
@@ -73,6 +75,11 @@ impl APIWorker {
             )
             .await
         });
+        let (recv_notifier, _) = broadcast::channel(64);
+        let recv_notifier = Arc::new(RwLock::new(recv_notifier));
+        let notifier = Arc::clone(&recv_notifier);
+        let api_recv_buffer = Arc::new(RwLock::new(Vec::new()));
+        let buffer = Arc::clone(&api_recv_buffer);
         let res = Arc::new(RwLock::new(Self {
             client_tx,
             _jh: jh,
@@ -82,16 +89,22 @@ impl APIWorker {
             ping: Duration::from_secs(0),
             delay: Duration::from_secs(0),
             signal_rx,
-            sync_recv_rx: RwLock::new(sync_recv_rx),
-            api_recv_buffer: Vec::new(),
+            api_recv_buffer,
+            recv_notifier,
             _tokio_rt: tokio_rt,
             _p: PhantomPinned,
         }));
         let res_ref = Arc::clone(&res);
-        let _ = res
-            .blocking_read()
+        res.blocking_read()
             ._tokio_rt
             .spawn(async move { worker_self_tx.send(res_ref).await });
+        let _: JoinHandle<Result<()>> = res.blocking_read()._tokio_rt.spawn(async move {
+            while let Some(pkg) = sync_recv_rx.recv().await {
+                buffer.write().await.push(pkg);
+                notifier.read().await.send(())?;
+            }
+            Ok(())
+        });
         while res.blocking_read().state_code == StateCode::NotStarted {}
         res
     }
@@ -170,42 +183,50 @@ impl APIWorker {
         self.delay.as_millis() as i64
     }
 
-    pub fn get_pkg_from_buffer(&mut self, type_id: u8) -> Option<ServerPackage> {
-        for i in 0..self.api_recv_buffer.len() {
-            if self.api_recv_buffer[i].discriminant() == type_id {
-                return Some(self.api_recv_buffer.remove(i));
+    pub async fn get_pkg_from_buffer(&mut self, type_id: u8) -> Option<ServerPackage> {
+        let mut buffer = self.api_recv_buffer.write().await;
+        for i in 0..buffer.len() {
+            if buffer[i].discriminant() == type_id {
+                return Some(buffer.remove(i));
             }
         }
         None
     }
 
     pub async fn pkg_recv(&mut self, type_id: u8) -> Option<ServerPackage> {
-        if let Some(pkg) = self.get_pkg_from_buffer(type_id) {
-            return Some(pkg);
-        }
         loop {
-            if let Some(res) = {
-                let mut rx_g = unsafe { &*addr_of!(self.sync_recv_rx) }.write().await;
-                let res = if let Some(pkg) = self.get_pkg_from_buffer(type_id) {
-                    Some(pkg)
-                } else {
-                    if let Some(pkg) = rx_g.recv().await {
-                        if pkg.discriminant() == type_id {
-                            event!(Level::INFO, "Found package: {:?}", pkg);
-                            Some(pkg)
-                        } else {
-                            self.api_recv_buffer.push(pkg);
-                            None
-                        }
-                    } else {
-                        return None;
-                    }
-                };
-                res
-            } {
-                return Some(res);
+            if let Some(pkg) = self.get_pkg_from_buffer(type_id).await {
+                break Some(pkg);
+            }
+            let mut rx = self.recv_notifier.read().await.subscribe();
+            if let Err(_) = rx.recv().await {
+                break None;
             }
         }
+    }
+
+    pub fn recv_player_exit(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        let _: JoinHandle<Result<()>> = self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            loop {
+                match selfp
+                    .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::Exit(0)).discriminant())
+                    .await
+                {
+                    Some(ServerPackage::PlayerEvent(PlayerEvent::Exit(uuid))) => {
+                        call.call(&[uuid.to_string().to_variant()]);
+                    }
+                    Some(pkg) => {
+                        selfp.api_recv_buffer.write().await.push(pkg);
+                        selfp.recv_notifier.read().await.send(())?;
+                    }
+                    None => break,
+                }
+            }
+            event!(Level::INFO, "Exited recv_player_exit");
+            Ok(())
+        });
     }
 
     pub fn scene_sync(&mut self, object: ObjectPack) {
@@ -228,6 +249,7 @@ impl APIWorker {
                 let objects: Vec<_> = objects.into_iter().map(|obj| obj.to_variant()).collect();
                 call.call(&[objects.to_variant()]);
             }
+            event!(Level::INFO, "Exited recv_scene_sync");
         });
     }
 
@@ -237,7 +259,7 @@ impl APIWorker {
 
     pub fn recv_player_enter(&mut self, call: SafeCallable) {
         let selfp = SafePointer(self as *mut APIWorker);
-        self._tokio_rt.spawn(async move {
+        let _: JoinHandle<Result<()>> = self._tokio_rt.spawn(async move {
             let mut selfp = selfp;
             loop {
                 match selfp
@@ -247,10 +269,15 @@ impl APIWorker {
                     Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(uuid, name))) => {
                         call.call(&[uuid.to_string().to_variant(), name.to_variant()]);
                     }
-                    Some(pkg) => selfp.api_recv_buffer.push(pkg),
+                    Some(pkg) => {
+                        selfp.api_recv_buffer.write().await.push(pkg);
+                        selfp.recv_notifier.read().await.send(())?;
+                    }
                     None => break,
                 }
             }
+            event!(Level::INFO, "Exited recv_player_enter");
+            Ok(())
         });
     }
 
@@ -271,6 +298,7 @@ impl APIWorker {
                     names.into_iter().map(|name| GString::from(name)).collect();
                 call.call(&[ids.to_variant(), names.to_variant()]);
             }
+            event!(Level::INFO, "Exited recv_player_list")
         });
     }
 }
@@ -356,6 +384,12 @@ impl TheBallsWorker {
     fn recv_player_enter(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_enter(call);
+    }
+
+    #[func]
+    fn recv_player_exit(&mut self, call: Callable) {
+        let call = SafeCallable::new(call);
+        self.worker.blocking_write().recv_player_exit(call);
     }
 
     #[func]

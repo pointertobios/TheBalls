@@ -22,6 +22,8 @@ class_name BallPlayer
 
 @onready var enemies = ($".." as Game).enemy_list
 
+var uuid: String
+
 # Skill
 var recover : Recover
 var shield : Shield

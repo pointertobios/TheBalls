@@ -66,6 +66,7 @@ impl ServerPackage {
 /// 定义一个玩家事件枚举
 pub enum PlayerEvent {
     Enter(u128, String),
+    Exit(u128),
     None,
 }
 
