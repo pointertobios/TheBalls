@@ -9,8 +9,8 @@ var player_scene: Resource = load("res://scene/player.tscn")
 
 # 最大敌人数量
 @export var max_enemies: int = 5
-@export var max_value: float = 100.0  #// 最大值
-@export var current_value: float = 0.0  #// 当前值
+@export var max_value: float = 100.0 # // 最大值
+@export var current_value: float = 0.0 # // 当前值
 var player_list: Dictionary = {}
 
 var player_uuid: String = ""
@@ -34,7 +34,7 @@ func set_status(status: bool):
 var menu_exited = false
 
 func start_get_player_list(call: Callable):
-	worker.recv_player_list(func (uuids, names):
+	worker.recv_player_list(func(uuids, names):
 		for i in range(len(uuids)):
 			player_list[uuids[i]] = player_scene.instantiate()
 			player_list[uuids[i]].uuid = uuids[i]
@@ -44,7 +44,7 @@ func start_get_player_list(call: Callable):
 	)
 
 func start_get_player_enter(call: Callable):
-	worker.recv_player_enter(func (uuid: String, name: String):
+	worker.recv_player_enter(func(uuid: String, name: String):
 		player_list[uuid] = player_scene.instantiate()
 		player_list[uuid].uuid = uuid
 		add_child(player_list[uuid])
@@ -53,7 +53,7 @@ func start_get_player_enter(call: Callable):
 	)
 
 func start_get_player_exit(call: Callable):
-	worker.recv_player_exit(func (uuid: String):
+	worker.recv_player_exit(func(uuid: String):
 		remove_child(player_list[uuid])
 		player_list.erase(uuid)
 		if not menu_exited:
@@ -62,22 +62,24 @@ func start_get_player_exit(call: Callable):
 
 func game_start():
 	is_running = true
-	worker.recv_scene_sync(func (objs: Array):
+	worker.recv_scene_sync(func(objs: Array):
 		for obj in objs:
 			var uuid = obj[0]
+			if uuid == player_uuid:
+				continue
 			var cur_player: BallPlayer = player_list[uuid]
 			cur_player.mesh.radius = obj[1]
-			cur_player.position = obj[2]
-			cur_player.velocity = obj[3]
+			cur_player.position = Vector3(obj[2][0], obj[2][1], obj[2][2])
+			cur_player.gravity.y = obj[2][1]
+			cur_player.velocity = Vector3(obj[3][0], obj[3][1], obj[3][2])
 			cur_player.velocity.y = 0
-			cur_player.gravity.v = obj[3].y
-			cur_player.acc = obj[4]
+			cur_player.gravity.v = obj[3][1]
+			cur_player.acc = Vector3(obj[4][0], obj[4][1], obj[4][2])
 			cur_player.acc.y = 0
 			cur_player.gravity.fast_jump = obj[5]
 			cur_player.gravity.charging = obj[6]
 			cur_player.gravity.charging_keep = obj[7]
 	)
-
 
 
 func _ready() -> void:

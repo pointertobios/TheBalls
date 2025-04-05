@@ -6,10 +6,7 @@ use std::{fmt::Debug, future::Future, time::Duration};
 use anyhow::Result;
 use bincode::{deserialize, serialize};
 use bytes::BytesMut;
-use godot::{
-    meta::{GodotConvert, ToGodot},
-    prelude::*,
-};
+use godot::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tracing::{event, Level};
@@ -74,7 +71,7 @@ pub struct ObjectPack {
 impl ObjectPack {
     pub fn to_variant(&self) -> VariantArray {
         varray![
-            self.uuid.to_string().to_variant(),
+            format!("{:x}", self.uuid).to_variant(),
             self.radius,
             self.position.to_variant(),
             self.velocity.to_variant(),

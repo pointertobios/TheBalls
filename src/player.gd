@@ -118,6 +118,9 @@ func update_camera_distance():
 	camera.position = Vector3(d, sqrt(2) * d, d)
 
 func _process(delta: float) -> void:
+	if uuid != game.player_uuid:
+		return
+
 	# 检测 L 键按下，切换摄像头视角
 	if Input.is_action_just_pressed("KEY_L"):
 		current_camera_view = (current_camera_view + 1) % 4  # 循环切换 0-3
@@ -127,12 +130,6 @@ func _process(delta: float) -> void:
 		for enemy in enemies:
 			enemy.health_bar.rotation = rotation + camera.rotation
 			
-	#timer += delta  # 累加时间
-	skillofEProcess.value += delta * 1000
-	if skillofEProcess.value == skillofEProcess.max_value:  # 如果达到 15 秒
-		if skillofE.count < 5:  # 如果 count 小于 5，增加 count
-			skillofE.count += 1
-			skillofEProcess.value = 0
 
 	# 获取输入方向
 	var input_dir = Input.get_vector("KEY_A", "KEY_D", "KEY_W", "KEY_S")
@@ -197,6 +194,13 @@ var internal_acc_will_release: bool = false
 
 func _physics_process(delta: float) -> void:
 	update_camera_distance()
+	
+	#timer += delta  # 累加时间
+	skillofEProcess.value += delta * 1000
+	if skillofEProcess.value == skillofEProcess.max_value:  # 如果达到 15 秒
+		if skillofE.count < 5:  # 如果 count 小于 5，增加 count
+			skillofE.count += 1
+			skillofEProcess.value = 0
 
 	blood_board.value = blood
 	velocity += acc

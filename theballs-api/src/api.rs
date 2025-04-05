@@ -1,4 +1,4 @@
-use std::{marker::PhantomPinned, ptr::addr_of, sync::Arc, time::Duration};
+use std::{marker::PhantomPinned, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -11,11 +11,10 @@ use tokio::{
     runtime::{self, Runtime},
     sync::{
         broadcast,
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Sender},
         RwLock,
     },
     task::JoinHandle,
-    time::sleep,
 };
 use tracing::{event, Level};
 
@@ -215,7 +214,7 @@ impl APIWorker {
                     .await
                 {
                     Some(ServerPackage::PlayerEvent(PlayerEvent::Exit(uuid))) => {
-                        call.call(&[uuid.to_string().to_variant()]);
+                        call.call(&[format!("{:x}", uuid).to_variant()]);
                     }
                     Some(pkg) => {
                         selfp.api_recv_buffer.write().await.push(pkg);
@@ -267,7 +266,7 @@ impl APIWorker {
                     .await
                 {
                     Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(uuid, name))) => {
-                        call.call(&[uuid.to_string().to_variant(), name.to_variant()]);
+                        call.call(&[format!("{:x}", uuid).to_variant(), name.to_variant()]);
                     }
                     Some(pkg) => {
                         selfp.api_recv_buffer.write().await.push(pkg);
@@ -292,7 +291,7 @@ impl APIWorker {
                 let (ids, names): (Vec<u128>, Vec<String>) = list.into_iter().unzip();
                 let ids: Array<GString> = ids
                     .into_iter()
-                    .map(|id| GString::from(id.to_string()))
+                    .map(|id| GString::from(format!("{:x}", id)))
                     .collect();
                 let names: Array<GString> =
                     names.into_iter().map(|name| GString::from(name)).collect();

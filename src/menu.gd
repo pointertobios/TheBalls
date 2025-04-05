@@ -80,6 +80,8 @@ func _on_nickname_submitted(nickname: String):
 			uuid_to_name[ids[i]] = names[i]
 		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
 		print("player_list: ", uuid_to_name)
+		if len(uuid_to_name) >= 3:
+			game_start.emit()
 	)
 	game.start_get_player_enter(func (uuid, name):
 		print(name, " enter")

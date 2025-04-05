@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Debug,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, LazyLock,
@@ -18,6 +19,7 @@ use tokio::{
     },
     time::interval,
 };
+use tracing::{event, Level};
 
 use crate::{
     game::{gametick, physicstick},
@@ -30,6 +32,15 @@ pub struct Scene {
     id: u8,
     objects: HashMap<u128, Arc<RwLock<dyn AsObject>>>,
     sync_data_sender: Sender<ServerPackage>,
+}
+
+impl Debug for Scene {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Scene")
+            .field("id", &self.id)
+            .field("sync_data_sender", &self.sync_data_sender)
+            .finish()
+    }
 }
 
 impl Scene {
@@ -50,6 +61,7 @@ impl Scene {
         }
         let res_cl = Arc::clone(&res);
         tokio::spawn(async move {
+            event!(Level::INFO, "\nScene started.");
             let mut gt = interval(gametick::TICK);
             let mut gt_last = SystemTime::now();
             let mut pt = interval(physicstick::TICK);
@@ -71,13 +83,14 @@ impl Scene {
                     }
                 }
             }
+            event!(Level::INFO, "\nScene ended.");
             Ok(())
         });
         res
     }
 
     pub async fn broadcast(&self, pkg: ServerPackage) -> Result<()> {
-        self.sync_data_sender.send(pkg)?;
+        let _ = self.sync_data_sender.send(pkg);
         Ok(())
     }
 
