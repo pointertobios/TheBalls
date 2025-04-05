@@ -112,7 +112,7 @@ async fn package_handle(
         }
 
         ClientPackage::PlayerEvent(event) => match event {
-            PlayerEvent::Enter(name) => {
+            PlayerEvent::Enter(_, name) => {
                 let res = Player::list().await;
                 event!(Level::DEBUG, "Send player list: {:?}", res);
 
@@ -123,7 +123,7 @@ async fn package_handle(
                     .await
                     .set_name(name.clone());
                 scene
-                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(name)))
+                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(head.player_id, name)))
                     .await?;
 
                 ServerPackage::PlayerList(res)

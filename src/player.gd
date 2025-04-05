@@ -17,7 +17,7 @@ class_name BallPlayer
 @onready var skillofEProcess: TextureProgressBar = get_node("../skillofE/Control/TextureProgressBar")
 
 
-@onready var mesh = meshi.mesh as SphereMesh
+@onready var mesh: SphereMesh = meshi.mesh as SphereMesh
 @onready var gravity = Gravity.new(9.8, mesh.radius, 0.5)
 
 @onready var enemies = ($".." as Game).enemy_list

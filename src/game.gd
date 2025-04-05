@@ -2,10 +2,18 @@ extends Node3D
 
 class_name Game
 
-@onready var enemy_scene: Resource = load("res://scene/enemy.tscn")
+var enemy_scene: Resource = load("res://scene/enemy.tscn")
+
+var player_scene: Resource = load("res://scene/player.tscn")
+
 
 # 最大敌人数量
 @export var max_enemies: int = 5
+@export var max_value: float = 100.0  #// 最大值
+@export var current_value: float = 0.0  #// 当前值
+var player_list = {}
+
+
 
 var enemy_list = []
 
@@ -15,8 +23,44 @@ var current_enemies: int = 0
 # 生成敌人的计时器
 var spawn_timer: float = 0.0
 
-@export var max_value: float = 100.0  #// 最大值
-@export var current_value: float = 0.0  #// 当前值
+var worker: TheBallsWorker
+
+#游戏是否开始
+var is_running: bool = false
+
+func set_status(status: bool):
+	is_running = status
+
+var menu_exited = false
+
+func start_get_player_enter(call: Callable):
+	worker.recv_player_enter(func (uuid: String, name: String):
+		player_list[uuid] = player_scene.instantiate()
+		if not menu_exited:
+			call.call(uuid, name)
+	)
+
+
+func game_start():
+	is_running = true
+	worker.recv_scene_sync(func (objs: Array):
+		for obj in objs:
+			var uuid = obj[0]
+			var cur_player: BallPlayer = player_list[uuid]
+			cur_player.mesh.radius = obj[1]
+			cur_player.position = obj[2]
+			cur_player.velocity = obj[3]
+			cur_player.velocity.y = 0
+			cur_player.gravity.v = obj[3].y
+			cur_player.acc = obj[4]
+			cur_player.acc.y = 0
+			cur_player.gravity.fast_jump = obj[5]
+			cur_player.gravity.charging = obj[6]
+			cur_player.gravity.charging_keep = obj[7]
+	)
+
+
+
 func _ready() -> void:
 	# 初始化计时器
 	spawn_timer = 3.0

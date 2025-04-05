@@ -231,8 +231,8 @@ impl APIWorker {
         });
     }
 
-    pub fn player_enter(&mut self, name: String) {
-        self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter(name)));
+    pub fn player_enter(&mut self, uuid: u128, name: String) {
+        self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter(uuid, name)));
     }
 
     pub fn recv_player_enter(&mut self, call: SafeCallable) {
@@ -244,8 +244,8 @@ impl APIWorker {
                     .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
                     .await
                 {
-                    Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(name))) => {
-                        call.call(&[name.to_variant()]);
+                    Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(uuid, name))) => {
+                        call.call(&[uuid.to_string().to_variant(), name.to_variant()]);
                     }
                     Some(pkg) => selfp.api_recv_buffer.push(pkg),
                     None => break,
@@ -345,8 +345,11 @@ impl TheBallsWorker {
     }
 
     #[func]
-    fn player_enter(&mut self, name: GString) {
-        self.worker.blocking_write().player_enter(name.to_string());
+    fn player_enter(&mut self, uuid: GString, name: GString) {
+        self.worker.blocking_write().player_enter(
+            u128::from_str_radix(&uuid.to_string(), 16).unwrap(),
+            name.to_string(),
+        );
     }
 
     #[func]

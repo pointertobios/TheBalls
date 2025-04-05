@@ -7,11 +7,13 @@ extends Node2D
 @onready var waiting_panel = $UI/WaitingPanel
 @onready var waiting_label = $UI/WaitingPanel/Label
 @onready var title = $UI/Background/Label
+@onready var game: Game = load("res://scene/game.tscn").instantiate()
 
-var worker: TheBallsWorker
 var player_uuid: String = ""
 
-var player_list = []
+#var player_list = []
+
+var uuid_to_name = {}
 
 signal game_start
 
@@ -65,36 +67,34 @@ func _on_nickname_submitted(nickname: String):
 	player_uuid = nickname.md5_text()
 	print(player_uuid)
 
-	worker = TheBallsWorker.connect("127.0.0.1:3000", player_uuid)
-	worker.connection_failed(func (e):
+	game.worker = TheBallsWorker.connect("127.0.0.1:3000", player_uuid)
+	game.worker.connection_failed(func (e):
 		print(e)
 	)
-	worker.timeout(func ():
+	game.worker.timeout(func ():
 		print("connection timeout")
+		#
 	)
-	worker.started(func ():
+	game.worker.started(func ():
 		print("connectiong started")
 	)
-	worker.player_enter(nickname)
-	worker.recv_player_list(func (ids, names):
-		for name in names:
-			if len(name) == 0:
-				continue
-			player_list.append(name)
-		waiting_label.text = "等待玩家加入 (" + str(len(player_list)) + "/3)..."
-		print("player_list: ", player_list)
+	game.worker.player_enter(player_uuid, nickname)
+	game.worker.recv_player_list(func (ids, names):
+		for i in range(len(ids)):
+			uuid_to_name[ids[i]] = names[i]
+		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
+		print("player_list: ", uuid_to_name)
 	)
-	worker.recv_player_enter(func (name):
-		player_list.append(name)
-		var l = len(player_list)
-		waiting_label.text = "等待玩家加入 (" + str(l) +  "/3)..."
-		if l >= 3:
+	game.start_get_player_enter(func (uuid, name):
+		uuid_to_name[uuid] = name
+		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
+		if len(uuid_to_name) >= 3:
 			game_start.emit()
 	)
 	
 	nickname_input.visible = false
 	waiting_panel.visible = true
-	waiting_label.text = "等待玩家加入 (" + str(len(player_list)) + "/3)..."
+	waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
 	
 	await _start_game()
 
@@ -103,6 +103,10 @@ func _update_waiting_ui(msg: String):
 	
 func _start_game():
 	await game_start
-	var game = load("res://scene/game.tscn").instantiate()
+	game.game_start()
 	get_tree().root.add_child(game)
+	game.menu_exited = true
 	queue_free()
+
+func _exit_tree() -> void:
+	game.worker.exit()

@@ -65,7 +65,7 @@ impl ServerPackage {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// 定义一个玩家事件枚举
 pub enum PlayerEvent {
-    Enter(String),
+    Enter(u128, String),
     None,
 }
 
