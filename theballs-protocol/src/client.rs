@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{server::PlayerEvent, FromTcpStream, Pack};
+use crate::{server::PlayerEvent, FromTcpStream, ObjectPack, Pack};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct ClientHead {
@@ -48,6 +48,9 @@ pub enum ClientPackage {
     /// to correct the time at client. Server do not deal with any time deviation.
     TimeDeviation,
     Exit,
+    SceneSync{
+        object: ObjectPack,
+    },
     PlayerEvent(PlayerEvent),
 }
 

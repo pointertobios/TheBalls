@@ -5,6 +5,7 @@ use godot::prelude::*;
 use theballs_protocol::{
     client::ClientPackage,
     server::{PlayerEvent, ServerPackage, StateCode},
+    ObjectPack,
 };
 use tokio::{
     runtime::{self, Runtime},
@@ -13,7 +14,6 @@ use tokio::{
         RwLock,
     },
     task::JoinHandle,
-    time,
 };
 use tracing::{event, Level};
 
@@ -30,7 +30,7 @@ const PIPE_BUFFER_SIZE: usize = 1000;
 /// freed or moved during the whole runtime.
 pub struct APIWorker {
     client_tx: Sender<ClientPackage>,
-    jh: JoinHandle<Result<()>>,
+    _jh: JoinHandle<Result<()>>,
 
     pub(crate) world_id: u8,
     pub(crate) player_uuid: u128,
@@ -75,7 +75,7 @@ impl APIWorker {
         });
         let res = Arc::new(RwLock::new(Self {
             client_tx,
-            jh,
+            _jh: jh,
             world_id: 0,
             player_uuid: 0,
             state_code: StateCode::NotStarted,
@@ -204,10 +204,31 @@ impl APIWorker {
                 res
             } {
                 return Some(res);
-            } else {
-                time::sleep(Duration::from_millis(1)).await;
             }
         }
+    }
+
+    pub fn scene_sync(&mut self, object: ObjectPack) {
+        self.send(ClientPackage::SceneSync { object });
+    }
+
+    pub fn recv_scene_sync(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            while let Some(ServerPackage::SceneSync { objects }) = selfp
+                .pkg_recv(
+                    ServerPackage::SceneSync {
+                        objects: Vec::new(),
+                    }
+                    .discriminant(),
+                )
+                .await
+            {
+                let objects: Vec<_> = objects.into_iter().map(|obj| obj.to_variant()).collect();
+                call.call(&[objects.to_variant()]);
+            }
+        });
     }
 
     pub fn player_enter(&mut self, name: String) {
@@ -338,5 +359,17 @@ impl TheBallsWorker {
     fn recv_player_list(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_list(call);
+    }
+
+    #[func]
+    fn scene_sync(&mut self, object: VariantArray) {
+        let object = ObjectPack::from_variant(object);
+        self.worker.blocking_write().scene_sync(object);
+    }
+
+    #[func]
+    fn recv_scene_sync(&mut self, call: Callable) {
+        let call: SafeCallable = SafeCallable::new(call);
+        self.worker.blocking_write().recv_scene_sync(call);
     }
 }

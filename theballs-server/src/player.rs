@@ -8,7 +8,6 @@ use std::{
 use theballs_protocol::{
     client::ClientHead,
     server::{ServerHead, StateCode},
-    ObjectPack, PackObject,
 };
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock};
 use tracing::{event, span, Level};
@@ -69,6 +68,10 @@ impl AsObject for Player {
     fn as_object_mut(&mut self) -> &mut Object {
         &mut self.game_obj
     }
+
+    fn is_player(&self) -> bool {
+        true
+    }
 }
 
 impl Player {
@@ -84,7 +87,7 @@ impl Player {
             id,
             scene_id,
             name: String::new(),
-            game_obj: Object::default(),
+            game_obj: Object::new(id),
         }));
         map.insert(id, Arc::clone(&player));
         Scene::get(scene_id)

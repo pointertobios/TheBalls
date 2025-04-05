@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use theballs_protocol::server::ServerPackage;
 use tokio::{
     select,
@@ -59,7 +59,7 @@ impl Scene {
                     _ = gt.tick() => {
                         let delta = gt_last.elapsed().unwrap().as_secs_f64();
                         gt_last = SystemTime::now();
-                        gametick::tick(Arc::clone(&res_cl), delta).await;
+                        gametick::tick(Arc::clone(&res_cl), delta).await?;
                     }
                     _ = pt.tick() => {
                         let delta = pt_last.elapsed().unwrap().as_secs_f64();
@@ -71,6 +71,7 @@ impl Scene {
                     }
                 }
             }
+            Ok(())
         });
         res
     }

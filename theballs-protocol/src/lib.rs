@@ -6,6 +6,10 @@ use std::{fmt::Debug, future::Future, time::Duration};
 use anyhow::Result;
 use bincode::{deserialize, serialize};
 use bytes::BytesMut;
+use godot::{
+    meta::{GodotConvert, ToGodot},
+    prelude::*,
+};
 use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncReadExt, net::TcpStream};
 use tracing::{event, Level};
@@ -57,10 +61,42 @@ pub trait FromTcpStream {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ObjectPack {
+    pub uuid: u128,
     pub radius: f64,
     pub position: [f64; 3],
     pub velocity: [f64; 3],
     pub acceleration: [f64; 3],
+    pub fast_falling: bool,
+    pub charging: bool,
+    pub charging_keep: bool,
+}
+
+impl ObjectPack {
+    pub fn to_variant(&self) -> VariantArray {
+        varray![
+            self.uuid.to_string().to_variant(),
+            self.radius,
+            self.position.to_variant(),
+            self.velocity.to_variant(),
+            self.acceleration.to_variant(),
+            self.fast_falling,
+            self.charging,
+            self.charging_keep,
+        ]
+    }
+
+    pub fn from_variant(v: VariantArray) -> Self {
+        Self {
+            uuid: v.at(0).to::<String>().parse().unwrap(),
+            radius: v.at(1).to::<f64>(),
+            position: v.at(2).to::<[f64; 3]>(),
+            velocity: v.at(3).to::<[f64; 3]>(),
+            acceleration: v.at(4).to::<[f64; 3]>(),
+            fast_falling: v.at(5).to::<bool>(),
+            charging: v.at(6).to::<bool>(),
+            charging_keep: v.at(7).to::<bool>(),
+        }
+    }
 }
 
 pub trait PackObject: Sized {
@@ -68,4 +104,6 @@ pub trait PackObject: Sized {
     fn pack_objects_iter(objects: impl Iterator<Item = Self>) -> Vec<ObjectPack> {
         objects.map(|o| o.pack_object()).collect()
     }
+
+    fn unpack_object(pack: ObjectPack) -> Self;
 }

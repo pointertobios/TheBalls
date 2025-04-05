@@ -4,6 +4,7 @@ use theballs_protocol::{ObjectPack, PackObject};
 const G_ACC: f64 = 9.8;
 
 pub struct Object {
+    pub uuid: u128,
     pub radius: f64,
     pub position: Vector3<f64>,
     pub velocity: Vector3<f64>,
@@ -22,6 +23,13 @@ pub struct Object {
 }
 
 impl Object {
+    pub fn new(uuid: u128) -> Self {
+        Self {
+            uuid,
+            ..Default::default()
+        }
+    }
+
     pub async fn gravity(&mut self, delta: f64) {
         let tv = self.velocity.y;
         self.velocity.y -= G_ACC * delta;
@@ -79,6 +87,7 @@ impl Object {
 impl PackObject for Object {
     fn pack_object(&self) -> ObjectPack {
         ObjectPack {
+            uuid: self.uuid,
             radius: self.radius,
             position: [self.position.x, self.position.y, self.position.z],
             velocity: [self.velocity.x, self.velocity.y, self.velocity.z],
@@ -87,6 +96,27 @@ impl PackObject for Object {
                 self.acceleration.y,
                 self.acceleration.z,
             ],
+            fast_falling: self.fast_falling,
+            charging: self.charging,
+            charging_keep: self.charging_keep,
+        }
+    }
+
+    fn unpack_object(pack: ObjectPack) -> Self {
+        Self {
+            uuid: pack.uuid,
+            radius: pack.radius,
+            position: Vector3::new(pack.position[0], pack.position[1], pack.position[2]),
+            velocity: Vector3::new(pack.velocity[0], pack.velocity[1], pack.velocity[2]),
+            acceleration: Vector3::new(
+                pack.acceleration[0],
+                pack.acceleration[1],
+                pack.acceleration[2],
+            ),
+            fast_falling: pack.fast_falling,
+            charging: pack.charging,
+            charging_keep: pack.charging_keep,
+            ..Default::default()
         }
     }
 }
@@ -94,6 +124,7 @@ impl PackObject for Object {
 impl Default for Object {
     fn default() -> Self {
         Self {
+            uuid: 0,
             radius: 0.5,
             position: Vector3::new(0., 0.5, 0.),
             velocity: Vector3::new(0., 0., 0.),
@@ -113,6 +144,7 @@ impl Default for Object {
 impl Clone for Object {
     fn clone(&self) -> Self {
         Self {
+            uuid: self.uuid,
             radius: self.radius,
             position: self.position.clone(),
             velocity: self.velocity.clone(),
@@ -132,4 +164,6 @@ impl Clone for Object {
 pub trait AsObject: Send + Sync {
     fn as_object(&self) -> &Object;
     fn as_object_mut(&mut self) -> &mut Object;
+
+    fn is_player(&self) -> bool;
 }

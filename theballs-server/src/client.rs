@@ -13,7 +13,7 @@ use bytes::BytesMut;
 use theballs_protocol::{
     client::{ClientHead, ClientPackage},
     server::{PlayerEvent, ServerHead, ServerPackage, StateCode},
-    FromTcpStream, Pack, HEARTBEAT_DURATION,
+    FromTcpStream, Pack, PackObject, HEARTBEAT_DURATION,
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -26,7 +26,7 @@ use tokio::{
 use tracing::{event, Level};
 
 use crate::{
-    game::scene::Scene,
+    game::{object::Object, scene::Scene},
     player::{self, Player},
 };
 
@@ -95,8 +95,21 @@ async fn package_handle(
     let now = SystemTime::now();
 
     let spkg = match cpkg {
-
         ClientPackage::TimeDeviation => ServerPackage::TimeDeviation(now),
+
+        ClientPackage::SceneSync { object } => {
+            if object.uuid == head.player_id {
+                let dynobj = Object::unpack_object(object.clone());
+                *scene
+                    .objects_mut()
+                    .get(&object.uuid)
+                    .unwrap()
+                    .write()
+                    .await
+                    .as_object_mut() = dynobj;
+            }
+            ServerPackage::None
+        }
 
         ClientPackage::PlayerEvent(event) => match event {
             PlayerEvent::Enter(name) => {
