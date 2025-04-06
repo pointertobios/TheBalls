@@ -1,14 +1,14 @@
 [gd_scene load_steps=26 format=3 uid="uid://b74hbui2nt53"]
 
-[ext_resource type="Script" uid="uid://dcsi57no0a58s" path="res://src/player.gd" id="1_2fvbb"]
-[ext_resource type="Shader" uid="uid://1hqpsx1y321c" path="res://shader/player.gdshader" id="1_hjaqi"]
-[ext_resource type="Texture2D" uid="uid://cxjylwlkevaos" path="res://asset/tail.png" id="2_fvtld"]
-[ext_resource type="Script" uid="uid://dpibfxe5adubj" path="res://src/player_particle.gd" id="2_hjaqi"]
-[ext_resource type="Script" uid="uid://bfu5iw74nllnj" path="res://src/hit.gd" id="4_ct4mp"]
-[ext_resource type="Script" uid="uid://bq8bxgy1purue" path="res://src/skill.gd" id="5_s4jxa"]
-[ext_resource type="AudioStream" uid="uid://bmm1euvnav3wo" path="res://asset/1.mp3" id="6_g2vtq"]
-[ext_resource type="AudioStream" uid="uid://cswdtop2q2lyn" path="res://asset/2.MP3" id="7_2fvbb"]
-[ext_resource type="AudioStream" uid="uid://bi6u1gi5oeh3v" path="res://asset/3.mp3" id="8_ml7e8"]
+[ext_resource type="Script" uid="uid://6c037w7cjwk8" path="res://src/player.gd" id="1_2fvbb"]
+[ext_resource type="Shader" uid="uid://bw3wo58xyf454" path="res://shader/player.gdshader" id="1_hjaqi"]
+[ext_resource type="Texture2D" uid="uid://f1402jy1tp7a" path="res://asset/tail.png" id="2_fvtld"]
+[ext_resource type="Script" uid="uid://byhg7pq2ks702" path="res://src/player_particle.gd" id="2_hjaqi"]
+[ext_resource type="Script" uid="uid://5yrfd1s4ejo1" path="res://src/hit.gd" id="4_ct4mp"]
+[ext_resource type="Script" uid="uid://c2n2b70qfnbjs" path="res://src/skill.gd" id="5_s4jxa"]
+[ext_resource type="AudioStream" uid="uid://btu0s5ndo3vo8" path="res://asset/1.mp3" id="6_g2vtq"]
+[ext_resource type="AudioStream" uid="uid://d23vft301pp5y" path="res://asset/2.MP3" id="7_2fvbb"]
+[ext_resource type="AudioStream" uid="uid://dfdlio6hx5pub" path="res://asset/3.mp3" id="8_ml7e8"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_s4jxa"]
 
@@ -19,25 +19,25 @@ shader = ExtResource("1_hjaqi")
 [sub_resource type="SphereMesh" id="SphereMesh_sh265"]
 material = SubResource("ShaderMaterial_hjaqi")
 
-[sub_resource type="Curve" id="Curve_fvtld"]
+[sub_resource type="Curve" id="Curve_2fvbb"]
 _data = [Vector2(0, 1), 0.0, -3.37891, 0, 0, Vector2(0.987629, 0), 0.0, 0.0, 0, 0]
 point_count = 2
 
-[sub_resource type="CurveTexture" id="CurveTexture_ct4mp"]
-curve = SubResource("Curve_fvtld")
+[sub_resource type="CurveTexture" id="CurveTexture_ml7e8"]
+curve = SubResource("Curve_2fvbb")
 
-[sub_resource type="Curve" id="Curve_ct4mp"]
+[sub_resource type="Curve" id="Curve_ihjo1"]
 _limits = [-200.0, 200.0, 0.0, 1.0]
 _data = [Vector2(0, 200), 0.0, 0.0, 0, 0, Vector2(1, -200), 0.0, 0.0, 0, 0]
 point_count = 2
 
-[sub_resource type="CurveTexture" id="CurveTexture_s4jxa"]
-curve = SubResource("Curve_ct4mp")
+[sub_resource type="CurveTexture" id="CurveTexture_dk1vr"]
+curve = SubResource("Curve_ihjo1")
 
-[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_xo3ru"]
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_34jf3"]
 gravity = Vector3(0, 0, 0)
-radial_accel_curve = SubResource("CurveTexture_s4jxa")
-alpha_curve = SubResource("CurveTexture_ct4mp")
+radial_accel_curve = SubResource("CurveTexture_dk1vr")
+alpha_curve = SubResource("CurveTexture_ml7e8")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fvtld"]
 transparency = 1
@@ -94,7 +94,7 @@ transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 
 amount = 300
 lifetime = 0.5
 randomness = 0.37
-process_material = SubResource("ParticleProcessMaterial_xo3ru")
+process_material = SubResource("ParticleProcessMaterial_34jf3")
 draw_pass_1 = SubResource("QuadMesh_ct4mp")
 script = ExtResource("2_hjaqi")
 

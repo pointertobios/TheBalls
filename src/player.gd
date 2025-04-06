@@ -124,6 +124,7 @@ func update_camera_distance():
 	camera.position = Vector3(d, sqrt(2) * d, d)
 
 func _process(delta: float) -> void:
+	print(game.worker.ping())
 	if uuid != game.player_uuid:
 		return
 

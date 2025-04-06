@@ -63,6 +63,7 @@ func _on_nickname_submitted(nickname: String):
 	game.player_uuid = (nickname + str(Time.get_unix_time_from_system())).md5_text()
 	print(game.player_uuid)
 
+	#192.168.137.1
 	game.worker = TheBallsWorker.connect("127.0.0.1:3000", game.player_uuid)
 	game.worker.connection_failed(func (e):
 		print(e)

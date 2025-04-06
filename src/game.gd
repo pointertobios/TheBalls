@@ -34,14 +34,14 @@ func set_status(status: bool):
 var menu_exited = false
 
 func spawn_player(uuid, player_name, pos):
-		player_list[uuid] = player_scene.instantiate()
-		player_list[uuid].uuid = uuid
-		player_list[uuid].position = pos
-		if uuid != player_uuid:
-			for node in player_list[uuid].get_children():
-				if node.name == "Camera3D":
-					node.queue_free()
-		add_child(player_list[uuid])
+	player_list[uuid] = player_scene.instantiate()
+	player_list[uuid].uuid = uuid
+	player_list[uuid].position = pos
+	if uuid != player_uuid:
+		for node in player_list[uuid].get_children():
+			if node.name == "Camera3D":
+				node.queue_free()
+	add_child(player_list[uuid])
 
 func start_get_player_list(call: Callable):
 	worker.recv_player_list(func(uuids, names):

@@ -15,3 +15,4 @@ func _process(delta: float) -> void:
 		material.initial_velocity_min = 5
 		material.initial_velocity_max = 5
 		material.spread = 15
+		self.visible = false
