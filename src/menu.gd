@@ -60,7 +60,7 @@ func _on_nickname_submitted(nickname: String):
 		nickname_input.placeholder_text = "昵称不能为空！"
 		return
 	
-	game.player_uuid = nickname.md5_text()
+	game.player_uuid = (nickname + str(Time.get_unix_time_from_system())).md5_text()
 	print(game.player_uuid)
 
 	game.worker = TheBallsWorker.connect("127.0.0.1:3000", game.player_uuid)

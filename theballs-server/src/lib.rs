@@ -11,7 +11,11 @@ use std::sync::{
 use anyhow::{Ok, Result};
 use game::scene::Scene;
 use tokio::{
-    net::TcpListener, select, signal::ctrl_c, sync::broadcast, task::{self, JoinHandle}
+    net::TcpListener,
+    select,
+    signal::ctrl_c,
+    sync::broadcast,
+    task::{self, JoinHandle},
 };
 use tracing::{event, Level};
 

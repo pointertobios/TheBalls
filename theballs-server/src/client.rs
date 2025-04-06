@@ -26,7 +26,10 @@ use tokio::{
 use tracing::{event, Level};
 
 use crate::{
-    game::{object::Object, scene::Scene},
+    game::{
+        object::{AsObject, Object},
+        scene::Scene,
+    },
     player::{self, Player},
 };
 
@@ -115,21 +118,23 @@ async fn package_handle(
         }
 
         ClientPackage::PlayerEvent(event) => match event {
-            PlayerEvent::Enter(_, name) => {
+            PlayerEvent::Enter { uuid: _, name, .. } => {
                 let res = Player::list().await;
                 event!(Level::DEBUG, "Send player list: {:?}", res);
 
-                Player::get(head.player_id)
-                    .await
-                    .unwrap()
-                    .write()
-                    .await
-                    .set_name(name.clone());
+                let player = Player::get(head.player_id).await.unwrap();
+                let mut player = player.write().await;
+                player.set_name(name.clone());
                 scene
-                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter(
-                        head.player_id,
+                    .broadcast(ServerPackage::PlayerEvent(PlayerEvent::Enter {
+                        uuid: head.player_id,
                         name,
-                    )))
+                        position: [
+                            player.as_object().position.x as i64,
+                            player.as_object().position.y as i64,
+                            player.as_object().position.z as i64,
+                        ],
+                    }))
                     .await?;
 
                 ServerPackage::PlayerList(res)

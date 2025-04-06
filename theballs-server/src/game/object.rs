@@ -1,4 +1,5 @@
 use nalgebra::Vector3;
+use rand::Rng;
 use theballs_protocol::{ObjectPack, PackObject};
 
 const G_ACC: f64 = 9.8;
@@ -123,10 +124,15 @@ impl PackObject for Object {
 
 impl Default for Object {
     fn default() -> Self {
+        let mut rng = rand::rng();
         Self {
             uuid: 0,
             radius: 0.5,
-            position: Vector3::new(0., 0.5, 0.),
+            position: Vector3::new(
+                (rng.random::<i64>() % 40) as f64,
+                1.,
+                (rng.random::<i64>() % 40) as f64,
+            ),
             velocity: Vector3::new(0., 0., 0.),
             acceleration: Vector3::new(0., 0., 0.),
             max_charge: 0.5,

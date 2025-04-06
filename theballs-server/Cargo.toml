@@ -9,6 +9,7 @@ bincode = "1.3.3"
 bytes = { version = "1.10.1", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive"] }
 nalgebra = "0.33.2"
+rand = "0.9.0"
 serde = { version = "1.0.219", features = ["derive"] }
 theballs-protocol = { version = "0.1.0", path = "../theballs-protocol" }
 tokio = { version = "1.44.1", features = ["full"] }

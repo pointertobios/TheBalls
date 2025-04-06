@@ -84,7 +84,7 @@ impl ObjectPack {
 
     pub fn from_variant(v: VariantArray) -> Self {
         Self {
-            uuid: v.at(0).to::<String>().parse().unwrap(),
+            uuid: u128::from_str_radix(&v.at(0).to::<String>(), 16).unwrap(),
             radius: v.at(1).to::<f64>(),
             position: v.at(2).to::<[f64; 3]>(),
             velocity: v.at(3).to::<[f64; 3]>(),

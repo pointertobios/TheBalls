@@ -253,7 +253,11 @@ impl APIWorker {
     }
 
     pub fn player_enter(&mut self, uuid: u128, name: String) {
-        self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter(uuid, name)));
+        self.send(ClientPackage::PlayerEvent(PlayerEvent::Enter {
+            uuid,
+            name,
+            position: [0, 0, 0],
+        }));
     }
 
     pub fn recv_player_enter(&mut self, call: SafeCallable) {
@@ -265,8 +269,16 @@ impl APIWorker {
                     .pkg_recv(ServerPackage::PlayerEvent(PlayerEvent::None).discriminant())
                     .await
                 {
-                    Some(ServerPackage::PlayerEvent(PlayerEvent::Enter(uuid, name))) => {
-                        call.call(&[format!("{:x}", uuid).to_variant(), name.to_variant()]);
+                    Some(ServerPackage::PlayerEvent(PlayerEvent::Enter {
+                        uuid,
+                        name,
+                        position,
+                    })) => {
+                        call.call(&[
+                            format!("{:x}", uuid).to_variant(),
+                            name.to_variant(),
+                            position.to_variant(),
+                        ]);
                     }
                     Some(pkg) => {
                         selfp.api_recv_buffer.write().await.push(pkg);

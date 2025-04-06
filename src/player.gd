@@ -56,7 +56,7 @@ var is_sprint: bool = false  # 是否处于疾跑状态
 var camera_1 = 10
 var camera_2 = 14.142
 var camera_3 = 10
-@onready var camera = $Camera3D as Node3D
+@onready var camera
 var current_camera_view: int = 0  # 当前视角索引
 @onready var game: Game = $".."
 
@@ -71,6 +71,8 @@ var timer: float = 0.0  # 用于记录时间
 const COUNT_INTERVAL: float = 15.0  # 每 15 秒增加一次 count
 
 func _ready() -> void:
+	if uuid == game.player_uuid:
+		camera = $Camera3D as Node3D
 	# 获取或创建材质
 	var material = meshi.material_override
 	if not material:
@@ -99,6 +101,8 @@ func camera_distance():
 	return 15 * (log(2 * coll.shape.radius) + 1) / log(10)
 
 func shake_camera():
+	if not camera:
+		return
 	var d = camera_distance()
 	for i in range(50):
 		await get_tree().create_timer(0.02).timeout
@@ -114,6 +118,8 @@ func shake_camera():
 	camera.position = Vector3(d, sqrt(2) * d, d)
 
 func update_camera_distance():
+	if not camera:
+		return
 	var d = camera_distance()
 	camera.position = Vector3(d, sqrt(2) * d, d)
 
@@ -182,6 +188,21 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("6") and cs_inf.value:
 		cri.benison()
 		cs_inf.value -= 1
+	
+	# 发送场景同步数据包
+	var pos: Array[float] = [position.x, position.y, position.z]
+	var vel: Array[float] = [velocity.x, velocity.y, velocity.z]
+	var ac: Array[float] = [acc.x, acc.y, acc.z]
+	game.worker.scene_sync([
+		uuid,
+		mesh.radius,
+		pos,
+		vel,
+		ac,
+		gravity.fast_jump,
+		gravity.charging,
+		gravity.charging_keep,
+	])
 
 func bigger():
 	for i in range(48):
@@ -218,9 +239,9 @@ func _physics_process(delta: float) -> void:
 	var tmp_velocity = Vector3(velocity)
 
 	var v = composited_velocity().length()
-	if  v < 0.04 and $MeshInstance3D/GPUParticles3D.emitting:
+	if  v < 0.1 and $MeshInstance3D/GPUParticles3D.emitting:
 		$MeshInstance3D/GPUParticles3D.emitting = false
-	if not $MeshInstance3D/GPUParticles3D.emitting and v >= 0.04:
+	if not $MeshInstance3D/GPUParticles3D.emitting and v >= 0.1:
 		$MeshInstance3D/GPUParticles3D.emitting = true
 	if is_hit:
 		hit_timer -= delta

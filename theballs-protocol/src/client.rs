@@ -48,7 +48,7 @@ pub enum ClientPackage {
     /// to correct the time at client. Server do not deal with any time deviation.
     TimeDeviation,
     Exit,
-    SceneSync{
+    SceneSync {
         object: ObjectPack,
     },
     PlayerEvent(PlayerEvent),

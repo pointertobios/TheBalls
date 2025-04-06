@@ -33,21 +33,29 @@ func set_status(status: bool):
 
 var menu_exited = false
 
+func spawn_player(uuid, player_name, pos):
+		player_list[uuid] = player_scene.instantiate()
+		player_list[uuid].uuid = uuid
+		player_list[uuid].position = pos
+		if uuid != player_uuid:
+			for node in player_list[uuid].get_children():
+				if node.name == "Camera3D":
+					node.queue_free()
+		add_child(player_list[uuid])
+
 func start_get_player_list(call: Callable):
 	worker.recv_player_list(func(uuids, names):
 		for i in range(len(uuids)):
-			player_list[uuids[i]] = player_scene.instantiate()
-			player_list[uuids[i]].uuid = uuids[i]
-			add_child(player_list[uuids[i]])
+			if len(names[i]) == 0:
+				continue
+			spawn_player(uuids[i], names[i], Vector3(0,0,0))
 		if not menu_exited:
 			call.call(uuids, names)
 	)
 
 func start_get_player_enter(call: Callable):
-	worker.recv_player_enter(func(uuid: String, name: String):
-		player_list[uuid] = player_scene.instantiate()
-		player_list[uuid].uuid = uuid
-		add_child(player_list[uuid])
+	worker.recv_player_enter(func(uuid: String, name: String, pos):
+		spawn_player(uuid, name, Vector3(pos[0], pos[1], pos[2]))
 		if not menu_exited:
 			call.call(uuid, name)
 	)
@@ -67,6 +75,8 @@ func game_start():
 			var uuid = obj[0]
 			if uuid == player_uuid:
 				continue
+			if !player_list.get(uuid):
+				return
 			var cur_player: BallPlayer = player_list[uuid]
 			cur_player.mesh.radius = obj[1]
 			cur_player.position = Vector3(obj[2][0], obj[2][1], obj[2][2])
