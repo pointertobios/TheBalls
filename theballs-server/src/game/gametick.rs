@@ -7,7 +7,7 @@ use tracing::{event, Level};
 
 use super::scene::Scene;
 
-pub const TICK: Duration = Duration::from_millis(16);
+pub const TICK: Duration = Duration::from_millis(50);
 
 pub async fn tick(scene: Arc<RwLock<Scene>>, delta: f64) -> Result<()> {
     let scene = scene.write().await;

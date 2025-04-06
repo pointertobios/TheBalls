@@ -207,6 +207,13 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
             event!(Level::TRACE, ?head.player_id, "\n{:?}", res_);
             return Err(anyhow!("Player id not found in world"));
         }
+        let res = ServerHead {
+            state: StateCode::Success,
+            scene_id: head.scene_id,
+            player_id: head.player_id,
+        };
+        let res = serialize(&res)?;
+        stream.write_all(&res).await?;
     }
     Ok(head)
 }

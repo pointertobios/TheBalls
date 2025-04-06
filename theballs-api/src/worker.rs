@@ -1,7 +1,10 @@
 use std::{
     io,
     ptr::{addr_of_mut, null_mut},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::{Duration, SystemTime},
 };
 
@@ -17,10 +20,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
     select,
-    sync::{
-        mpsc::{Receiver, Sender},
-        RwLock,
-    },
+    sync::{broadcast, mpsc::Receiver, RwLock},
     time::{interval, sleep, timeout},
 };
 use tracing::{event, Level};
@@ -38,8 +38,10 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
     player_id: u128,
     scene_id: u8,
     mut client_rx: Receiver<ClientPackage>,
-    sync_sends: Sender<ServerPackage>,
+    buffer: Arc<RwLock<Vec<ServerPackage>>>,
+    notifier: Arc<RwLock<broadcast::Sender<()>>>,
     api_signal_tx: APISignalsSender,
+    running: Arc<AtomicBool>,
 ) -> Result<()> {
     let worker_self = worker_self_rx.recv().await.unwrap();
     let stream = connect(&worker_self, addr, &api_signal_tx).await?;
@@ -85,7 +87,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
 
     let mut buf = BytesMut::new();
 
-    loop {
+    while running.load(Ordering::Acquire) {
         let mut stream_guard = stream.write().await;
         select! {
             cpkg = client_rx.recv() => {
@@ -108,7 +110,8 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
                     }
                     Some(ServerPackage::Exit) => break,
                     Some(p) => {
-                        sync_sends.send(p).await?;
+                        buffer.write().await.push(p);
+                        notifier.read().await.send(())?;
                     }
                     None => (),
                 }

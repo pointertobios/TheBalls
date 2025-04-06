@@ -1,4 +1,12 @@
-use std::{marker::PhantomPinned, sync::Arc, time::Duration};
+use std::{
+    marker::PhantomPinned,
+    ptr::addr_of_mut,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, LazyLock,
+    },
+    time::Duration,
+};
 
 use anyhow::Result;
 use godot::prelude::*;
@@ -12,7 +20,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self, Sender},
-        RwLock,
+        OnceCell, RwLock,
     },
     task::JoinHandle,
 };
@@ -33,6 +41,8 @@ pub struct APIWorker {
     client_tx: Sender<ClientPackage>,
     _jh: JoinHandle<Result<()>>,
 
+    host: String,
+    player_id: u128,
     pub(crate) world_id: u8,
     pub(crate) player_uuid: u128,
 
@@ -46,42 +56,51 @@ pub struct APIWorker {
     api_recv_buffer: Arc<RwLock<Vec<ServerPackage>>>,
     recv_notifier: Arc<RwLock<broadcast::Sender<()>>>,
 
+    running: Arc<AtomicBool>,
     _tokio_rt: Runtime,
 
     _p: PhantomPinned,
 }
+
+static mut API_WORKER_INSTANCE: RwLock<Option<Arc<RwLock<APIWorker>>>> = RwLock::const_new(None);
 
 impl APIWorker {
     pub fn connect(host: String, player_id: u128, world_id: u8) -> Arc<RwLock<Self>> {
         logging_init();
         let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
         let (worker_self_tx, worker_self_rx) = mpsc::channel(1);
-        let (sync_recv_tx, mut sync_recv_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
         let (signal_tx, signal_rx) = api_signal_channel(PIPE_BUFFER_SIZE);
         let tokio_rt = runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
-        let jh = tokio_rt.spawn(async move {
-            worker(
-                worker_self_rx,
-                host,
-                player_id,
-                world_id,
-                client_rx,
-                sync_recv_tx,
-                signal_tx,
-            )
-            .await
-        });
+        let api_recv_buffer = Arc::new(RwLock::new(Vec::new()));
+        let buffer = Arc::clone(&api_recv_buffer);
+        let running = Arc::new(AtomicBool::new(true));
+        let running_ref = Arc::clone(&running);
         let (recv_notifier, _) = broadcast::channel(64);
         let recv_notifier = Arc::new(RwLock::new(recv_notifier));
         let notifier = Arc::clone(&recv_notifier);
-        let api_recv_buffer = Arc::new(RwLock::new(Vec::new()));
-        let buffer = Arc::clone(&api_recv_buffer);
+        let _host = host.clone();
+        let jh = tokio_rt.spawn(async move {
+            worker(
+                worker_self_rx,
+                _host,
+                player_id,
+                world_id,
+                client_rx,
+                Arc::clone(&buffer),
+                notifier,
+                signal_tx,
+                running_ref,
+            )
+            .await
+        });
         let res = Arc::new(RwLock::new(Self {
             client_tx,
             _jh: jh,
+            host,
+            player_id,
             world_id: 0,
             player_uuid: 0,
             state_code: StateCode::NotStarted,
@@ -90,6 +109,7 @@ impl APIWorker {
             signal_rx,
             api_recv_buffer,
             recv_notifier,
+            running,
             _tokio_rt: tokio_rt,
             _p: PhantomPinned,
         }));
@@ -97,15 +117,75 @@ impl APIWorker {
         res.blocking_read()
             ._tokio_rt
             .spawn(async move { worker_self_tx.send(res_ref).await });
-        let _: JoinHandle<Result<()>> = res.blocking_read()._tokio_rt.spawn(async move {
-            while let Some(pkg) = sync_recv_rx.recv().await {
-                buffer.write().await.push(pkg);
-                notifier.read().await.send(())?;
-            }
-            Ok(())
-        });
         while res.blocking_read().state_code == StateCode::NotStarted {}
+        let w = Arc::clone(&res);
+        res.blocking_read()
+            ._tokio_rt
+            .spawn(async move { unsafe { *API_WORKER_INSTANCE.write().await = Some(w) } });
         res
+    }
+
+    pub fn reconnect(selfp: *mut APIWorker) {
+        let selfp = unsafe { &mut *selfp };
+        selfp.running.store(false, Ordering::SeqCst);
+        while !selfp._jh.is_finished() {}
+
+        let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
+        let (worker_self_tx, worker_self_rx) = mpsc::channel(1);
+        let (signal_tx, signal_rx) = api_signal_channel(PIPE_BUFFER_SIZE);
+        let tokio_rt = runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let api_recv_buffer = Arc::new(RwLock::new(Vec::new()));
+        let buffer = Arc::clone(&api_recv_buffer);
+        let running = Arc::new(AtomicBool::new(true));
+        let running_ref = Arc::clone(&running);
+        let (recv_notifier, _) = broadcast::channel(64);
+        let recv_notifier = Arc::new(RwLock::new(recv_notifier));
+        let notifier = Arc::clone(&recv_notifier);
+        let host = selfp.host.clone();
+        let _host = host.clone();
+        let player_id = selfp.player_id;
+        let world_id = selfp.world_id;
+        let jh = tokio_rt.spawn(async move {
+            worker(
+                worker_self_rx,
+                _host,
+                player_id,
+                world_id,
+                client_rx,
+                Arc::clone(&buffer),
+                notifier,
+                signal_tx,
+                running_ref,
+            )
+            .await
+        });
+        *selfp = Self {
+            client_tx,
+            _jh: jh,
+            host,
+            player_id,
+            world_id: 0,
+            player_uuid: 0,
+            state_code: StateCode::TryingToConnect,
+            ping: Duration::from_secs(0),
+            delay: Duration::from_secs(0),
+            signal_rx,
+            api_recv_buffer,
+            recv_notifier,
+            running,
+            _tokio_rt: tokio_rt,
+            _p: PhantomPinned,
+        };
+        let w = unsafe { Arc::clone(&API_WORKER_INSTANCE.blocking_read().as_ref().unwrap()) };
+        selfp
+            ._tokio_rt
+            .spawn(async move { worker_self_tx.send(w).await });
+        selfp
+            ._tokio_rt
+            .spawn(async { selfp.signal_rx.setup.recv().await });
     }
 
     pub fn wait_timeout(&mut self, call: SafeCallable) {
@@ -154,6 +234,7 @@ impl APIWorker {
             .block_on(async { self.client_tx.send(pkg).await });
         if let Err(e) = res {
             event!(Level::ERROR, "Failed to send package: {:?}", e);
+            Self::reconnect(addr_of_mut!(*self));
         }
     }
 
