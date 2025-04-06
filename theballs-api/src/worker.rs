@@ -33,18 +33,17 @@ static mut PING_PTR: *mut Duration = null_mut();
 static mut DELAY_PTR: *mut Duration = null_mut();
 
 pub async fn worker<A: ToSocketAddrs + Clone>(
-    mut worker_self_rx: Receiver<Arc<RwLock<APIWorker>>>,
+    worker_self: Arc<RwLock<APIWorker>>,
     addr: A,
     player_id: u128,
     scene_id: u8,
-    mut client_rx: Receiver<ClientPackage>,
+    client_rx: Arc<RwLock<Receiver<ClientPackage>>>,
     buffer: Arc<RwLock<Vec<ServerPackage>>>,
     notifier: Arc<RwLock<broadcast::Sender<()>>>,
-    api_signal_tx: APISignalsSender,
+    api_signal_tx: Arc<RwLock<APISignalsSender>>,
     running: Arc<AtomicBool>,
 ) -> Result<()> {
-    let worker_self = worker_self_rx.recv().await.unwrap();
-    let stream = connect(&worker_self, addr, &api_signal_tx).await?;
+    let stream = connect(&worker_self, addr, &*api_signal_tx.read().await).await?;
 
     let client_head = ClientHead {
         name_md5: 0xe2ee9b16d999349dab22b08daaf607bc, // theballs
@@ -62,7 +61,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
         worker_self.write().await.state_code = server_head.state;
         return Ok(());
     } else {
-        api_signal_tx.send_setup().await?;
+        api_signal_tx.read().await.send_setup().await?;
     }
     event!(Level::INFO, "..");
     let scene_id = server_head.scene_id;
@@ -89,8 +88,10 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
 
     while running.load(Ordering::Acquire) {
         let mut stream_guard = stream.write().await;
+        let mut client_rx = client_rx.write().await;
         select! {
             cpkg = client_rx.recv() => {
+                drop(client_rx);
                 drop(stream_guard);
                 if let Some(cpkg) = cpkg {
                     stream.write().await.write_all(&cpkg.pack()?).await?;
@@ -99,6 +100,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
                 }
             }
             spkg = ServerPackage::from_tcp_stream(&mut *stream_guard, &mut buf) => {
+                drop(client_rx);
                 drop(stream_guard);
                 match spkg? {
                     Some(ServerPackage::TimeDeviation(time)) => {
@@ -117,10 +119,12 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
                 }
             }
             _ = heartbeat_interval.tick() => {
+                drop(client_rx);
                 drop(stream_guard);
                 stream.write().await.write_all(&ClientPackage::HeartBeat.pack()?).await?;
             }
             _ = timedeviation_interval.tick() => {
+                drop(client_rx);
                 drop(stream_guard);
                 timedevi_tmp = SystemTime::now();
                 stream.write().await.write_all(&ClientPackage::TimeDeviation.pack()?).await?;
@@ -128,7 +132,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
         }
     }
 
-    api_signal_tx.send_exited().await?;
+    api_signal_tx.read().await.send_exited().await?;
 
     worker_self.write().await.state_code = StateCode::Exited;
 

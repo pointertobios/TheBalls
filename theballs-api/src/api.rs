@@ -57,6 +57,7 @@ pub struct APIWorker {
     recv_notifier: Arc<RwLock<broadcast::Sender<()>>>,
 
     running: Arc<AtomicBool>,
+    true_exit: Arc<AtomicBool>,
     _tokio_rt: Runtime,
 
     _p: PhantomPinned,
@@ -68,7 +69,7 @@ impl APIWorker {
     pub fn connect(host: String, player_id: u128, world_id: u8) -> Arc<RwLock<Self>> {
         logging_init();
         let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
-        let (worker_self_tx, worker_self_rx) = mpsc::channel(1);
+        let (worker_self_tx, mut worker_self_rx) = mpsc::channel(1);
         let (signal_tx, signal_rx) = api_signal_channel(PIPE_BUFFER_SIZE);
         let tokio_rt = runtime::Builder::new_multi_thread()
             .enable_all()
@@ -82,19 +83,32 @@ impl APIWorker {
         let recv_notifier = Arc::new(RwLock::new(recv_notifier));
         let notifier = Arc::clone(&recv_notifier);
         let _host = host.clone();
+        let true_exit = Arc::new(AtomicBool::new(false));
+        let true_exit_ref = Arc::clone(&true_exit);
         let jh = tokio_rt.spawn(async move {
-            worker(
-                worker_self_rx,
-                _host,
-                player_id,
-                world_id,
-                client_rx,
-                Arc::clone(&buffer),
-                notifier,
-                signal_tx,
-                running_ref,
-            )
-            .await
+            let worker_self = worker_self_rx.recv().await.unwrap();
+            let client_rx = Arc::new(RwLock::new(client_rx));
+            let signal_tx = Arc::new(RwLock::new(signal_tx));
+            let running = Arc::clone(&running_ref);
+            while running.load(Ordering::Acquire) {
+                let _ = worker(
+                    Arc::clone(&worker_self),
+                    _host.clone(),
+                    player_id,
+                    world_id,
+                    Arc::clone(&client_rx),
+                    Arc::clone(&buffer),
+                    Arc::clone(&notifier),
+                    Arc::clone(&signal_tx),
+                    Arc::clone(&running_ref),
+                )
+                .await;
+                running.store(true, Ordering::SeqCst);
+                if true_exit_ref.load(Ordering::Acquire) {
+                    break;
+                }
+            }
+            Ok(())
         });
         let res = Arc::new(RwLock::new(Self {
             client_tx,
@@ -110,6 +124,7 @@ impl APIWorker {
             api_recv_buffer,
             recv_notifier,
             running,
+            true_exit,
             _tokio_rt: tokio_rt,
             _p: PhantomPinned,
         }));
@@ -123,69 +138,6 @@ impl APIWorker {
             ._tokio_rt
             .spawn(async move { unsafe { *API_WORKER_INSTANCE.write().await = Some(w) } });
         res
-    }
-
-    pub fn reconnect(selfp: *mut APIWorker) {
-        let selfp = unsafe { &mut *selfp };
-        selfp.running.store(false, Ordering::SeqCst);
-        while !selfp._jh.is_finished() {}
-
-        let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
-        let (worker_self_tx, worker_self_rx) = mpsc::channel(1);
-        let (signal_tx, signal_rx) = api_signal_channel(PIPE_BUFFER_SIZE);
-        let tokio_rt = runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        let api_recv_buffer = Arc::new(RwLock::new(Vec::new()));
-        let buffer = Arc::clone(&api_recv_buffer);
-        let running = Arc::new(AtomicBool::new(true));
-        let running_ref = Arc::clone(&running);
-        let (recv_notifier, _) = broadcast::channel(64);
-        let recv_notifier = Arc::new(RwLock::new(recv_notifier));
-        let notifier = Arc::clone(&recv_notifier);
-        let host = selfp.host.clone();
-        let _host = host.clone();
-        let player_id = selfp.player_id;
-        let world_id = selfp.world_id;
-        let jh = tokio_rt.spawn(async move {
-            worker(
-                worker_self_rx,
-                _host,
-                player_id,
-                world_id,
-                client_rx,
-                Arc::clone(&buffer),
-                notifier,
-                signal_tx,
-                running_ref,
-            )
-            .await
-        });
-        *selfp = Self {
-            client_tx,
-            _jh: jh,
-            host,
-            player_id,
-            world_id: 0,
-            player_uuid: 0,
-            state_code: StateCode::TryingToConnect,
-            ping: Duration::from_secs(0),
-            delay: Duration::from_secs(0),
-            signal_rx,
-            api_recv_buffer,
-            recv_notifier,
-            running,
-            _tokio_rt: tokio_rt,
-            _p: PhantomPinned,
-        };
-        let w = unsafe { Arc::clone(&API_WORKER_INSTANCE.blocking_read().as_ref().unwrap()) };
-        selfp
-            ._tokio_rt
-            .spawn(async move { worker_self_tx.send(w).await });
-        selfp
-            ._tokio_rt
-            .spawn(async { selfp.signal_rx.setup.recv().await });
     }
 
     pub fn wait_timeout(&mut self, call: SafeCallable) {
@@ -234,7 +186,7 @@ impl APIWorker {
             .block_on(async { self.client_tx.send(pkg).await });
         if let Err(e) = res {
             event!(Level::ERROR, "Failed to send package: {:?}", e);
-            Self::reconnect(addr_of_mut!(*self));
+            self.running.store(false, Ordering::SeqCst);
         }
     }
 
@@ -251,6 +203,7 @@ impl APIWorker {
     #[inline]
     pub fn exit(&mut self) {
         self.send(ClientPackage::Exit);
+        self.true_exit.store(true, Ordering::SeqCst);
     }
 
     #[inline]
