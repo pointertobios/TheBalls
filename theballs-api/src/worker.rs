@@ -36,7 +36,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
     worker_self: Arc<RwLock<APIWorker>>,
     addr: A,
     player_id: u128,
-    scene_id: u8,
+    scene_id: &mut u8,
     client_rx: Arc<RwLock<Receiver<ClientPackage>>>,
     buffer: Arc<RwLock<Vec<ServerPackage>>>,
     notifier: Arc<RwLock<broadcast::Sender<()>>>,
@@ -48,7 +48,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
     let client_head = ClientHead {
         name_md5: 0xe2ee9b16d999349dab22b08daaf607bc, // theballs
         version: Version::from(env!("CARGO_PKG_VERSION")),
-        scene_id,
+        scene_id: *scene_id,
         player_id,
     };
     let client_head = serialize(&client_head)?;
@@ -63,7 +63,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
     } else {
         api_signal_tx.read().await.send_setup().await?;
     }
-    event!(Level::INFO, "..");
+    *scene_id = server_head.scene_id;
     let scene_id = server_head.scene_id;
     {
         let mut worker_self_wg = worker_self.write().await;

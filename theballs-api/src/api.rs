@@ -66,7 +66,7 @@ pub struct APIWorker {
 static mut API_WORKER_INSTANCE: RwLock<Option<Arc<RwLock<APIWorker>>>> = RwLock::const_new(None);
 
 impl APIWorker {
-    pub fn connect(host: String, player_id: u128, world_id: u8) -> Arc<RwLock<Self>> {
+    pub fn connect(host: String, player_id: u128) -> Arc<RwLock<Self>> {
         logging_init();
         let (client_tx, client_rx) = mpsc::channel(PIPE_BUFFER_SIZE);
         let (worker_self_tx, mut worker_self_rx) = mpsc::channel(1);
@@ -90,12 +90,13 @@ impl APIWorker {
             let client_rx = Arc::new(RwLock::new(client_rx));
             let signal_tx = Arc::new(RwLock::new(signal_tx));
             let running = Arc::clone(&running_ref);
+            let mut world_id = 0;
             while running.load(Ordering::Acquire) {
                 let _ = worker(
                     Arc::clone(&worker_self),
                     _host.clone(),
                     player_id,
-                    world_id,
+                    &mut world_id,
                     Arc::clone(&client_rx),
                     Arc::clone(&buffer),
                     Arc::clone(&notifier),
@@ -361,7 +362,7 @@ impl TheBallsWorker {
     #[func]
     fn connect(host: GString, player_id: GString) -> Gd<Self> {
         let player_id = u128::from_str_radix(player_id.to_string().as_str(), 16).unwrap();
-        let worker = APIWorker::connect(host.to_string(), player_id, 0);
+        let worker = APIWorker::connect(host.to_string(), player_id);
         Gd::from_init_fn(|_| Self {
             worker,
             _p: PhantomPinned,
