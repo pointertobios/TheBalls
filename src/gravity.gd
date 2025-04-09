@@ -18,18 +18,18 @@ var fast_jump: bool
 
 func _init(
 	g: float,
-	ballradius: float,
-	max_charge: float,
-	elas_coeff = 0.8
+	ballradius_: float,
+	max_charge_: float,
+	elas_coeff_ = 0.8
 ) -> void:
 	self.gravity = g
-	self.ballradius = ballradius
-	self.max_charge = max_charge
-	self.elas_coeff = elas_coeff
+	self.ballradius = ballradius_
+	self.max_charge = max_charge_
+	self.elas_coeff = elas_coeff_
 	self.y = ballradius
 
-func set_velocity(v: float) -> void:
-	self.v = v
+func set_velocity(vel: float) -> void:
+	v = vel
 
 func update(delta: float):
 	var tv = v
@@ -55,10 +55,10 @@ func update(delta: float):
 				if fast_jump:
 					v -= 499 * gravity * delta
 					if v < -velo_max * 50:
-						v = -velo_max * 50
+						v = - velo_max * 50
 				else:
 					if v < -velo_max:
-						v = -velo_max
+						v = - velo_max
 			elif y <= limr:
 				y = limr
 				v = -v
@@ -70,7 +70,7 @@ func update(delta: float):
 		var t = v
 		v -= charge_acc
 		if t >= -velo_max * 2 and v < -velo_max * 2:
-			v = -velo_max * 2
+			v = - velo_max * 2
 
 	yzoom = y / ballradius
 	if yzoom > 1:

@@ -6,10 +6,13 @@ const G_ACC: f64 = 9.8;
 
 pub struct Object {
     pub uuid: u128,
+    pub is_player: bool,
     pub radius: f64,
     pub position: Vector3<f64>,
     pub velocity: Vector3<f64>,
     pub acceleration: Vector3<f64>,
+    pub hp_max: f64,
+    pub hp: f64,
 
     max_charge: f64,
 
@@ -89,6 +92,7 @@ impl PackObject for Object {
     fn pack_object(&self) -> ObjectPack {
         ObjectPack {
             uuid: self.uuid,
+            is_player: self.is_player,
             radius: self.radius,
             position: [self.position.x, self.position.y, self.position.z],
             velocity: [self.velocity.x, self.velocity.y, self.velocity.z],
@@ -127,6 +131,7 @@ impl Default for Object {
         let mut rng = rand::rng();
         Self {
             uuid: 0,
+            is_player: false,
             radius: 0.5,
             position: Vector3::new(
                 (rng.random::<i64>() % 40) as f64,
@@ -135,6 +140,8 @@ impl Default for Object {
             ),
             velocity: Vector3::new(0., 0., 0.),
             acceleration: Vector3::new(0., 0., 0.),
+            hp_max: 100.,
+            hp: 100.,
             max_charge: 0.5,
             elas_coeff: 0.8,
             kinet_loss: 0.8,
@@ -151,10 +158,13 @@ impl Clone for Object {
     fn clone(&self) -> Self {
         Self {
             uuid: self.uuid,
+            is_player: self.is_player,
             radius: self.radius,
             position: self.position.clone(),
             velocity: self.velocity.clone(),
             acceleration: self.acceleration.clone(),
+            hp_max: self.hp_max,
+            hp: self.hp,
             max_charge: self.max_charge,
             elas_coeff: self.elas_coeff,
             kinet_loss: self.kinet_loss,

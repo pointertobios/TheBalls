@@ -76,7 +76,7 @@ pub async fn run(config: Config) -> Result<()> {
             peer = server.accept() => {
                 let (stream, socket_addr) = peer?;
                 let running = Arc::clone(&running);
-                let scene_sync_rx = scene.read().await.register_receiver();
+                let scene_sync_rx = scene.read().await.subscribe_receiver();
                 let jh = task::spawn(async move {
                     handle(stream, socket_addr, running, scene_sync_rx).await
                 });

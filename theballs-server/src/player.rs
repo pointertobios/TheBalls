@@ -83,12 +83,14 @@ impl Player {
 impl Player {
     pub async fn add(id: u128, scene_id: u8) {
         let mut map = PLAYER_MAP.write().await;
-        let player = Arc::new(RwLock::new(Player {
+        let mut player = Player {
             id,
             scene_id,
             name: String::new(),
             game_obj: Object::new(id),
-        }));
+        };
+        player.game_obj.is_player = true;
+        let player = Arc::new(RwLock::new(player));
         map.insert(id, Arc::clone(&player));
         Scene::get(scene_id)
             .await

@@ -59,6 +59,7 @@ pub trait FromTcpStream {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ObjectPack {
     pub uuid: u128,
+    pub is_player: bool,
     pub radius: f64,
     pub position: [f64; 3],
     pub velocity: [f64; 3],
@@ -72,6 +73,7 @@ impl ObjectPack {
     pub fn to_variant(&self) -> VariantArray {
         varray![
             format!("{:x}", self.uuid).to_variant(),
+            self.is_player,
             self.radius,
             self.position.to_variant(),
             self.velocity.to_variant(),
@@ -85,13 +87,14 @@ impl ObjectPack {
     pub fn from_variant(v: VariantArray) -> Self {
         Self {
             uuid: u128::from_str_radix(&v.at(0).to::<String>(), 16).unwrap(),
-            radius: v.at(1).to::<f64>(),
-            position: v.at(2).to::<[f64; 3]>(),
-            velocity: v.at(3).to::<[f64; 3]>(),
-            acceleration: v.at(4).to::<[f64; 3]>(),
-            fast_falling: v.at(5).to::<bool>(),
-            charging: v.at(6).to::<bool>(),
-            charging_keep: v.at(7).to::<bool>(),
+            is_player: v.at(1).to::<bool>(),
+            radius: v.at(2).to::<f64>(),
+            position: v.at(3).to::<[f64; 3]>(),
+            velocity: v.at(4).to::<[f64; 3]>(),
+            acceleration: v.at(5).to::<[f64; 3]>(),
+            fast_falling: v.at(6).to::<bool>(),
+            charging: v.at(7).to::<bool>(),
+            charging_keep: v.at(8).to::<bool>(),
         }
     }
 }

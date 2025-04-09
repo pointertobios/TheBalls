@@ -36,6 +36,7 @@ var menu_exited = false
 func spawn_player(uuid, player_name, pos):
 	player_list[uuid] = player_scene.instantiate()
 	player_list[uuid].uuid = uuid
+	player_list[uuid].player_name = player_name
 	player_list[uuid].position = pos
 	if uuid != player_uuid:
 		for node in player_list[uuid].get_children():
@@ -43,29 +44,29 @@ func spawn_player(uuid, player_name, pos):
 				node.queue_free()
 	add_child(player_list[uuid])
 
-func start_get_player_list(call: Callable):
+func start_get_player_list(callback: Callable):
 	worker.recv_player_list(func(uuids, names):
 		for i in range(len(uuids)):
 			if len(names[i]) == 0:
 				continue
-			spawn_player(uuids[i], names[i], Vector3(0,0,0))
+			spawn_player(uuids[i], names[i], Vector3(0, 0, 0))
 		if not menu_exited:
-			call.call(uuids, names)
+			callback.call(uuids, names)
 	)
 
-func start_get_player_enter(call: Callable):
-	worker.recv_player_enter(func(uuid: String, name: String, pos):
-		spawn_player(uuid, name, Vector3(pos[0], pos[1], pos[2]))
+func start_get_player_enter(callback: Callable):
+	worker.recv_player_enter(func(uuid: String, player_name: String, pos):
+		spawn_player(uuid, player_name, Vector3(pos[0], pos[1], pos[2]))
 		if not menu_exited:
-			call.call(uuid, name)
+			callback.call(uuid, player_name)
 	)
 
-func start_get_player_exit(call: Callable):
+func start_get_player_exit(callback: Callable):
 	worker.recv_player_exit(func(uuid: String):
 		remove_child(player_list[uuid])
 		player_list.erase(uuid)
 		if not menu_exited:
-			call.call(uuid)
+			callback.call(uuid)
 	)
 
 func game_start():
@@ -73,22 +74,26 @@ func game_start():
 	worker.recv_scene_sync(func(objs: Array):
 		for obj in objs:
 			var uuid = obj[0]
-			if uuid == player_uuid:
-				continue
-			if !player_list.get(uuid):
-				return
-			var cur_player: BallPlayer = player_list[uuid]
-			cur_player.mesh.radius = obj[1]
-			cur_player.position = Vector3(obj[2][0], obj[2][1], obj[2][2])
-			cur_player.gravity.y = obj[2][1]
-			cur_player.velocity = Vector3(obj[3][0], obj[3][1], obj[3][2])
-			cur_player.velocity.y = 0
-			cur_player.gravity.v = obj[3][1]
-			cur_player.acc = Vector3(obj[4][0], obj[4][1], obj[4][2])
-			cur_player.acc.y = 0
-			cur_player.gravity.fast_jump = obj[5]
-			cur_player.gravity.charging = obj[6]
-			cur_player.gravity.charging_keep = obj[7]
+			if obj[1]:
+				if uuid == player_uuid:
+					continue
+				if !player_list.get(uuid):
+					return
+				var cur_player: BallPlayer = player_list[uuid]
+				cur_player.mesh.radius = obj[2]
+				cur_player.position = Vector3(obj[3][0], obj[3][1], obj[3][2])
+				cur_player.gravity.y = obj[3][1]
+				cur_player.velocity = Vector3(obj[4][0], obj[4][1], obj[4][2])
+				cur_player.velocity.y = 0
+				cur_player.gravity.v = obj[4][1]
+				cur_player.acc = Vector3(obj[5][0], obj[5][1], obj[5][2])
+				cur_player.acc.y = 0
+				cur_player.gravity.fast_jump = obj[6]
+				cur_player.gravity.charging = obj[7]
+				cur_player.gravity.charging_keep = obj[8]
+	)
+	worker.recv_enemy_spawn(func(uuid, pos):
+		spawn_enemy(uuid, Vector3(pos[0], pos[1], pos[2]))
 	)
 
 
@@ -96,29 +101,21 @@ func _ready() -> void:
 	# 初始化计时器
 	spawn_timer = 3.0
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	pass
-	# 如果当前敌人数量小于最大数量，并且计时器小于等于0，生成敌人
-	#if current_enemies < max_enemies:
-		#spawn_timer -= delta
-		#if spawn_timer <= 0:
-			#spawn_enemy()
-			#spawn_timer = 3.0  # 重置计时器
 
-func spawn_enemy() -> void:
+func spawn_enemy(uuid, pos) -> void:
 	# 实例化敌人场景
 	var enemy_instance = enemy_scene.instantiate()
 	enemy_list.append(enemy_instance)
 	enemy_instance.add_to_group("enemies")
+	enemy_instance.uuid = uuid
+	enemy_instance.position = pos
 	# 将敌人添加到场景中
 	add_child(enemy_instance)
 	
-	
 	# 增加当前敌人数量
 	current_enemies += 1
-	
-	# 连接敌人的死亡信号（假设敌人有一个信号在死亡时发出）
-	#enemy_scene.connect("enemy_died", self, "_on_enemy_died")
 
 func _on_enemy_died() -> void:
 	# 当敌人死亡时，减少当前敌人数量

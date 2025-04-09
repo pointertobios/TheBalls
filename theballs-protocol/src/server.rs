@@ -54,6 +54,7 @@ pub enum ServerPackage {
     },
     PlayerList(Vec<(u128, String)>), // (uuid, name)
     PlayerEvent(PlayerEvent),
+    EnemyEvent(EnemyEvent),
 }
 
 impl ServerPackage {
@@ -62,7 +63,7 @@ impl ServerPackage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// 定义一个玩家事件枚举
 pub enum PlayerEvent {
     Enter {
@@ -72,6 +73,17 @@ pub enum PlayerEvent {
     },
     Exit(u128),
     None,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum EnemyEvent {
+    Spawn {
+        uuid: u128,
+        position: [i64; 3],
+        hp: f64,
+    },
+    None,
+
 }
 
 impl Default for ServerPackage {

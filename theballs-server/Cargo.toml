@@ -15,3 +15,4 @@ theballs-protocol = { version = "0.1.0", path = "../theballs-protocol" }
 tokio = { version = "1.44.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["ansi"] }
+uuid = { version = "1.16.0", features = ["v4", "v8"] }

@@ -1,18 +1,17 @@
 use std::{
     marker::PhantomPinned,
-    ptr::addr_of_mut,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, LazyLock,
+        Arc,
     },
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use godot::prelude::*;
 use theballs_protocol::{
     client::ClientPackage,
-    server::{PlayerEvent, ServerPackage, StateCode},
+    server::{EnemyEvent, PlayerEvent, ServerPackage, StateCode},
     ObjectPack,
 };
 use tokio::{
@@ -20,7 +19,7 @@ use tokio::{
     sync::{
         broadcast,
         mpsc::{self, Sender},
-        OnceCell, RwLock,
+        RwLock,
     },
     task::JoinHandle,
 };
@@ -41,8 +40,6 @@ pub struct APIWorker {
     client_tx: Sender<ClientPackage>,
     _jh: JoinHandle<Result<()>>,
 
-    host: String,
-    player_id: u128,
     pub(crate) world_id: u8,
     pub(crate) player_uuid: u128,
 
@@ -114,8 +111,6 @@ impl APIWorker {
         let res = Arc::new(RwLock::new(Self {
             client_tx,
             _jh: jh,
-            host,
-            player_id,
             world_id: 0,
             player_uuid: 0,
             state_code: StateCode::NotStarted,
@@ -259,6 +254,33 @@ impl APIWorker {
                 }
             }
             event!(Level::INFO, "Exited recv_player_exit");
+            Ok(())
+        });
+    }
+
+    pub fn recv_enemy_spawn(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            loop {
+                match selfp
+                    .pkg_recv(ServerPackage::EnemyEvent(EnemyEvent::None).discriminant())
+                    .await
+                {
+                    Some(ServerPackage::EnemyEvent(EnemyEvent::Spawn { uuid, position, hp })) => {
+                        call.call(&[
+                            format!("{:x}", uuid).to_variant(),
+                            position.to_variant(),
+                            hp.to_variant(),
+                        ]);
+                    }
+                    Some(pkg) => {
+                        selfp.api_recv_buffer.write().await.push(pkg);
+                        selfp.recv_notifier.read().await.send(())?;
+                    }
+                    None => break,
+                }
+            }
             Ok(())
         });
     }
@@ -427,18 +449,29 @@ impl TheBallsWorker {
     }
 
     #[func]
+    /// worker.recv_player_enter(func (uuid: String, name: String, position: Array[int]):
+    ///     ...
+    /// )
+    /// `position` 需要重新构造成Vector3
+    /// `Array[int]` 仅为本文档类型提示，代码里只能写成 `Array`
     fn recv_player_enter(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_enter(call);
     }
 
     #[func]
+    /// worker.recv_player_exit(func (uuid: String):
+    ///     ...
+    /// )
     fn recv_player_exit(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_exit(call);
     }
 
     #[func]
+    /// worker.recv_player_list(func (ids: Array[String], names: Array[String]):
+    ///     ...
+    /// )
     fn recv_player_list(&mut self, call: Callable) {
         let call = SafeCallable::new(call);
         self.worker.blocking_write().recv_player_list(call);
@@ -451,8 +484,27 @@ impl TheBallsWorker {
     }
 
     #[func]
+    /// worker.recv_scene_sync(func (objs: Array[Object]):
+    ///     ...
+    /// )
+    /// # 场景同步事件
+    /// 敌人和玩家均为场景中的 `Object` ，客户端需要根据 `is_player` 参数选择更新玩家还是敌人。
+    /// `Array[Object]` 仅为本文档类型提示，代码里只能写成 `Array`
+    /// 其中 `Object` 类型为 `Array[Variant]` ，具体结构请看 `ObjectPack`
+    /// 直接使用数组下标访问 `ObjectPack` 成员
     fn recv_scene_sync(&mut self, call: Callable) {
         let call: SafeCallable = SafeCallable::new(call);
         self.worker.blocking_write().recv_scene_sync(call);
+    }
+
+    #[func]
+    /// worker.recv_enemy_spawn(func (uuid: String, position: Array[int], hp: float):
+    ///     ...
+    /// )
+    /// `position` 需要重新构造成Vector3
+    /// `Array[int]` 仅为本文档类型提示，代码里只能写成 `Array`
+    fn recv_enemy_spawn(&mut self, call: Callable) {
+        let call: SafeCallable = SafeCallable::new(call);
+        self.worker.blocking_write().recv_enemy_spawn(call);
     }
 }

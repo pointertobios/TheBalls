@@ -7,6 +7,7 @@ extends Node2D
 @onready var waiting_panel = $UI/WaitingPanel
 @onready var waiting_label = $UI/WaitingPanel/Label
 @onready var title = $UI/Background/Label
+
 @onready var game: Game = load("res://scene/game.tscn").instantiate()
 
 var uuid_to_name = {}
@@ -63,20 +64,19 @@ func _on_nickname_submitted(nickname: String):
 	game.player_uuid = (nickname + str(Time.get_unix_time_from_system())).md5_text()
 	print(game.player_uuid)
 
-	#192.168.137.1
 	game.worker = TheBallsWorker.connect("127.0.0.1:3000", game.player_uuid)
-	game.worker.connection_failed(func (e):
+	game.worker.connection_failed(func(e):
 		print(e)
 	)
-	game.worker.timeout(func ():
+	game.worker.timeout(func():
 		print("connection timeout")
 		#
 	)
-	game.worker.started(func ():
+	game.worker.started(func():
 		print("connectiong started")
 	)
 	game.worker.player_enter(game.player_uuid, nickname)
-	game.start_get_player_list(func (ids, names):
+	game.start_get_player_list(func(ids, names):
 		for i in range(len(ids)):
 			uuid_to_name[ids[i]] = names[i]
 		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
@@ -84,14 +84,14 @@ func _on_nickname_submitted(nickname: String):
 		if len(uuid_to_name) >= 3:
 			game_start.emit()
 	)
-	game.start_get_player_enter(func (uuid, name):
-		print(name, " enter")
-		uuid_to_name[uuid] = name
+	game.start_get_player_enter(func(uuid, player_name):
+		print(player_name, " enter")
+		uuid_to_name[uuid] = player_name
 		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
 		if len(uuid_to_name) >= 3:
 			game_start.emit()
 	)
-	game.start_get_player_exit(func (uuid):
+	game.start_get_player_exit(func(uuid):
 		print(uuid_to_name[uuid], " exit")
 		uuid_to_name.erase(uuid)
 		waiting_label.text = "等待玩家加入 (" + str(len(uuid_to_name)) + "/3)..."
