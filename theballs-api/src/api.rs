@@ -373,7 +373,7 @@ impl APIWorker {
 
 #[derive(GodotClass)]
 #[class(no_init)]
-struct TheBallsWorker {
+pub struct TheBallsWorker {
     worker: Arc<RwLock<APIWorker>>,
 
     _p: PhantomPinned,
