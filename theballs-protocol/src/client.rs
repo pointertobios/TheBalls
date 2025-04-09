@@ -34,7 +34,7 @@ impl From<&'static str> for Version {
 pub enum ClientPackage {
     None,
     /// The interval of heartbeat is defined at
-    /// [`crate::HEARTBEAT_DURATION`](crate::HEARTBEAT_DURATION)
+    /// [`crate::HEARTBEAT_DURATION`]
     ///
     /// This package will never get a reply.
     HeartBeat,

@@ -10,8 +10,8 @@ use godot::prelude::*;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::{event, Level};
 
-mod api;
-mod worker;
+pub mod api;
+pub mod worker;
 
 struct TheballsAPI;
 
