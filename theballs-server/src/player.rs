@@ -13,6 +13,7 @@ use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock};
 use tracing::{event, span, Level};
 
 use crate::game::{
+    enemy::Enemy,
     object::{AsObject, Object},
     scene::Scene,
 };
@@ -57,6 +58,8 @@ pub struct Player {
     scene_id: u8,
     name: String,
 
+    key: bool,
+
     game_obj: Object,
 }
 
@@ -72,43 +75,69 @@ impl AsObject for Player {
     fn is_player(&self) -> bool {
         true
     }
+
+    fn as_player(&self) -> Option<&Player> {
+        Some(self)
+    }
+
+    fn as_player_mut(&mut self) -> Option<&mut Player> {
+        Some(self)
+    }
+
+    fn as_enemy(&self) -> Option<&Enemy> {
+        None
+    }
+
+    fn as_enemy_mut(&mut self) -> Option<&mut Enemy> {
+        None
+    }
 }
 
 impl Player {
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
+
+    pub fn is_key_player(&self) -> bool {
+        self.key
+    }
 }
 
 impl Player {
     pub async fn add(id: u128, scene_id: u8) {
-        let mut map = PLAYER_MAP.write().await;
         let mut player = Player {
             id,
             scene_id,
             name: String::new(),
+            key: false,
             game_obj: Object::new(id),
         };
         player.game_obj.is_player = true;
+        let scene = Scene::get(scene_id).await.unwrap();
+        let mut scene = scene.write().await;
+        if scene.count_player().await == 0 {
+            player.key = true;
+        }
         let player = Arc::new(RwLock::new(player));
+        let mut map = PLAYER_MAP.write().await;
         map.insert(id, Arc::clone(&player));
-        Scene::get(scene_id)
-            .await
-            .unwrap()
-            .write()
-            .await
-            .add_player(id, player);
+        scene.add_player(id, player).await;
     }
 
     pub async fn exit(id: u128) {
         let mut map = PLAYER_MAP.write().await;
         let p = map.remove(&id).unwrap();
-        Scene::get(p.read().await.scene_id)
-            .await
-            .unwrap()
-            .write()
-            .await
-            .remove(id);
+        let scene = Scene::get(p.read().await.scene_id).await.unwrap();
+        if p.read().await.is_key_player() {
+            // 重新选择第一个被迭代到的player指定其为key player
+            for (_, p) in map.iter_mut() {
+                if p.read().await.is_key_player() {
+                    p.write().await.key = true;
+                    break;
+                }
+            }
+        }
+        scene.write().await.remove(id);
     }
 
     pub async fn list() -> Vec<(u128, String)> {

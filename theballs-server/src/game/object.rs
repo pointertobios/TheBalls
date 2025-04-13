@@ -1,6 +1,12 @@
+use std::collections::HashMap;
+
 use nalgebra::Vector3;
 use rand::Rng;
 use theballs_protocol::{ObjectPack, PackObject};
+
+use crate::player::Player;
+
+use super::enemy::Enemy;
 
 const G_ACC: f64 = 9.8;
 
@@ -34,7 +40,7 @@ impl Object {
         }
     }
 
-    pub async fn gravity(&mut self, delta: f64) {
+    pub fn gravity(&mut self, delta: f64) {
         let tv = self.velocity.y;
         self.velocity.y -= G_ACC * delta;
         self.position.y += self.velocity.y * delta;
@@ -110,6 +116,7 @@ impl PackObject for Object {
     fn unpack_object(pack: ObjectPack) -> Self {
         Self {
             uuid: pack.uuid,
+            is_player: pack.is_player,
             radius: pack.radius,
             position: Vector3::new(pack.position[0], pack.position[1], pack.position[2]),
             velocity: Vector3::new(pack.velocity[0], pack.velocity[1], pack.velocity[2]),
@@ -182,4 +189,8 @@ pub trait AsObject: Send + Sync {
     fn as_object_mut(&mut self) -> &mut Object;
 
     fn is_player(&self) -> bool;
+    fn as_player(&self) -> Option<&Player>;
+    fn as_enemy(&self) -> Option<&Enemy>;
+    fn as_player_mut(&mut self) -> Option<&mut Player>;
+    fn as_enemy_mut(&mut self) -> Option<&mut Enemy>;
 }

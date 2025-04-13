@@ -1,4 +1,4 @@
-mod enemy;
+pub mod enemy;
 mod gametick;
 pub mod object;
 mod physicstick;

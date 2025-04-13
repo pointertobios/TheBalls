@@ -6,12 +6,13 @@ class_name Enemy
 @onready var collshape = $CollisionShape3D
 @onready var gpuparticles = $GPUParticles3D
 @onready var death_sound_player: AudioStreamPlayer3D = $AudioStreamPlayer3D
-@onready var player: BallPlayer = get_node("../Player")
+# @onready var player: BallPlayer = get_node("../Player")
 @onready var skill: Skill = get_node("../Player/Skill")
 @onready var score: RichTextLabel = get_node("../Score_board/Score")
 @onready var ultimate_inf: TextureProgressBar = get_node("../CanvasLayer/Control/TextureProgressBar")
 @onready var progress_bar: ulti_bar = get_node("../CanvasLayer/Control/TextureProgressBar")
 @onready var game: Game = get_node("..")
+@onready var local_player = game.get_local_player()
 
 var health_bar: HealthBar
 
@@ -25,9 +26,6 @@ var fric = 0.9
 var score_add = 10
 
 var mutex = Mutex.new()
-
-# 玩家血量
-var player_blood: int
 
 var ulti_recover = 4
 
@@ -51,9 +49,9 @@ var random_inter: int = 100
 # 新增：敌人血量
 var health: float = 100.0
 var max_health: float = 100.0
-var is_attack_by_skill: float = false
+var is_attack_by_skill: bool = false
 var true_radiu: float = false
-var radiu_v: float = 1
+var rad_acc_rate: float = 1
 
 # 用于控制大招伤害的冷却时间
 var is_ultimate_attack: bool = false
@@ -64,38 +62,43 @@ var dying_player_recover = 3
 @onready var hit_timer = Timer.new() # 用于控制受伤时间
 
 func set_hp():
-	(gpuparticles as VisualInstance3D).visible = false
-	var pos = randf_range(1, random_inter)
-	if pos > 90 and pos <= 100:
-		speed = 15
-		max_health = 200.0 # 血量根据敌人大小调整
-	elif pos > 80 and pos <= 90:
-		speed = 12
-		max_health = 150.0
-	elif pos > 70 and pos <= 80:
-		speed = 10
-		max_health = 120.0
-	elif pos > 60 and pos <= 70:
-		speed = 8
-		max_health = 100.0
-	else:
-		speed = 3
-		max_health = 50.0
+	# (gpuparticles as VisualInstance3D).visible = false
+	# var pos = randf_range(1, random_inter)
+	# if pos > 90 and pos <= 100:
+	# 	speed = 15
+	# 	max_health = 200.0 # 血量根据敌人大小调整
+	# elif pos > 80 and pos <= 90:
+	# 	speed = 12
+	# 	max_health = 150.0
+	# elif pos > 70 and pos <= 80:
+	# 	speed = 10
+	# 	max_health = 120.0
+	# elif pos > 60 and pos <= 70:
+	# 	speed = 8
+	# 	max_health = 100.0
+	# else:
+	# 	speed = 3
+	# 	max_health = 50.0
 
 	health = max_health
 	update_health_bar() # 更新血条
 
 	#var true_radiu: float
-	if pos > 90 and pos <= 100:
+	if max_health == 200:
 		true_radiu = 2
-	elif pos > 80 and pos <= 90:
+		speed = 15
+	elif max_health == 150:
 		true_radiu = 1.5
-	elif pos > 70 and pos <= 80:
+		speed = 12
+	elif max_health == 120:
 		true_radiu = 1
-	elif pos > 60 and pos <= 70:
+		speed = 10
+	elif max_health == 100:
 		true_radiu = 0.8
+		speed = 8
 	else:
 		true_radiu = 0.5
+		speed = 3
 	(collshape.shape as SphereShape3D).radius = true_radiu
 	mesh.radius = 0
 	mesh.height = 0
@@ -105,8 +108,8 @@ func set_hp():
 		health_bar.max_length = mesh.radius # 血条长度与敌人大小相关
 		health_bar.position.y = mesh.radius + 0.2 # 血条位置在敌人头顶
 		health_bar.reset()
-		health_bar.rotation = player.rotation + player.camera.rotation
-	set_random_color()
+		health_bar.rotation = local_player.rotation + local_player.camera.rotation
+	# set_random_color()
 
 func _ready() -> void:
 	meshi.mesh = meshi.mesh.duplicate()
@@ -138,19 +141,44 @@ func _ready() -> void:
 	health_bar.centered = true
 	get_tree().root.add_child(health_bar) # 将血条添加到敌人节点
 
+func _process(_delta: float) -> void:
+	var pos: Array[float] = [position.x, position.y, position.z]
+	var vel: Array[float] = [velocity.x, velocity.y, velocity.z]
+	var ac: Array[float] = [acc.x, acc.y, acc.z]
+	game.worker.scene_sync([
+		uuid,
+		false,
+		mesh.radius,
+		pos,
+		vel,
+		ac,
+		gravity.fast_jump,
+		gravity.charging,
+		gravity.charging_keep
+	])
+
 # 计时器结束时恢复颜色
 func _on_hit_timeout():
 	meshi.material_override.set_shader_parameter("hit_blend", 0.0) # 恢复原色
 
+func get_nearest_player() -> BallPlayer:
+	var res: BallPlayer = null
+	var d = null
+	for p: BallPlayer in game.player_list.values():
+		var dd = p.position - position
+		if d == null or dd < d:
+			d = dd
+			res = p
+	return res
+
 func _physics_process(delta: float) -> void:
 	if mesh.radius < true_radiu:
-		position.y = mesh.radius
-		mesh.radius += radiu_v * delta
-		mesh.height += radiu_v * 2 * delta
-		gravity.ballradius += radiu_v
+		mesh.radius += rad_acc_rate * delta
+		mesh.height += rad_acc_rate * 2 * delta
+		gravity.ballradius += rad_acc_rate
 		meshi.material_override.set_shader_parameter("alpha", mesh.radius / true_radiu)
+		position.y = mesh.radius
 		if mesh.radius >= true_radiu:
-			position.y = mesh.radius
 			health_bar.max_length = true_radiu
 			(gpuparticles as VisualInstance3D).visible = true
 			update_health_bar()
@@ -163,8 +191,8 @@ func _physics_process(delta: float) -> void:
 		
 	if health_bar:
 		health_bar.global_transform.origin = global_transform.origin + Vector3(0, mesh.radius + 0.5, 0) # 在敌人头顶显示
-	if not player:
-		return # 如果玩家不存在，直接返回
+	# if not player:
+	# 	return # 如果玩家不存在，直接返回
 	# 更新扣除玩家血量的冷却时间
 	if not can_damage_player:
 		damage_cooldown -= delta
@@ -190,7 +218,8 @@ func _physics_process(delta: float) -> void:
 			is_die = false
 			$Die.emitting = false
 			set_hp()
-	if not player.confine.is_confine:
+	if not game.any_player_confined():
+		var player = get_nearest_player()
 		# 获取玩家的水平位置（忽略 Y 轴）
 		var player_position = Vector3(player.position.x, 0, player.position.z)
 	
@@ -201,7 +230,7 @@ func _physics_process(delta: float) -> void:
 		var direction = (player_position - enemy_position).normalized()
 
 		# 移动敌人
-		velocity = direction * speed
+		velocity = direction * speed * delta * 50
 
 		# 让敌人平滑转向玩家
 		var target_rotation = atan2(direction.x, direction.z)
@@ -220,38 +249,38 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 
 	# 检测敌人接触技能或玩家
-	if not is_hidden and player.is_ultimate and (player.ultimate_ball.position - position).length() <= \
-	mesh.radius + player.ultimate_ball.current_radius + 0.8 and (player.ultimate_ball.position - position).length() >= \
-	mesh.radius + player.ultimate_ball.current_radius - 0.8:
+	if not is_hidden and local_player.is_ultimate and (local_player.ultimate_ball.position - position).length() <= \
+	mesh.radius + local_player.ultimate_ball.current_radius + 0.8 and (local_player.ultimate_ball.position - position).length() >= \
+	mesh.radius + local_player.ultimate_ball.current_radius - 0.8:
 		if !is_ultimate_attack:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-			take_ulti_damage(player.ATK * player.ulti_mult) # 开大时造成更高伤害
+			take_ulti_damage(local_player.ATK * local_player.ulti_mult, local_player) # 开大时造成更高伤害
 			is_ultimate_attack = true
-	elif not is_hidden and player.is_skill_emitting() and (Vector3(player.position.x, 0, player.position.z) - position).length() <= \
+	elif not is_hidden and local_player.is_skill_emitting() and (Vector3(local_player.position.x, 0, local_player.position.z) - position).length() <= \
 	skill.collision_radius and not is_attack_by_skill:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
-		player.skill_emitting()
-		take_damage(player.ATK * player.skill_mult) # 技能造成伤害
+		local_player.skill_emitting()
+		take_damage(local_player.ATK * local_player.skill_mult, local_player) # 技能造成伤害
 		is_attack_by_skill = true
 	elif not is_hidden and is_near():
-		if player.gravity.charging and player.position.y > position.y:
+		if local_player.gravity.charging and local_player.position.y > position.y:
 			# 玩家压扁敌人
 			start_squash_effect() # 调用压扁效果函数
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
 			await get_tree().create_timer(0.2).timeout # 等待压扁动画完成
-			take_damage(player.ATK) # 普通撞击伤害
+			take_damage(local_player.ATK, local_player) # 普通撞击伤害
 		elif can_damage_player and not collshape.disabled:
 			# 扣除玩家血量
-			if not player.shield.is_safe:
-				player.blood -= 1 # 假设每次扣除1点血量
+			if not local_player.shield.is_safe:
+				local_player.blood -= 1 # 假设每次扣除1点血量
 				can_damage_player = false
 				damage_cooldown = 1.0 # 设置1秒的冷却时间
 
-# 新增：敌人受到伤害
-func take_damage(damage_val: float) -> void:
+# 敌人受到伤害
+func take_damage(damage_val: float, player: BallPlayer) -> void:
 	var ran_num = randf_range(1, 100)
 	var is_cri = false
 	if ran_num <= player.cri_ch:
@@ -266,7 +295,7 @@ func take_damage(damage_val: float) -> void:
 	meshi.material_override.set_shader_parameter("hit_blend", 0.5) # 变红
 	hit_timer.start(0.4) # 0.4秒后恢复
 
-func take_ulti_damage(damage_val: float) -> void:
+func take_ulti_damage(damage_val: float, player: BallPlayer) -> void:
 	var ran_num = randf_range(1, 100)
 	var is_cri = false
 	if ran_num <= player.cri_ch:
@@ -292,8 +321,8 @@ func die() -> void:
 	$Die.emitting = true
 	$Die.set_radial_acceleration(10)
 	damage() # 调用原有的 damage 函数处理分数和隐藏逻辑
-	if player.is_ultimate and player.ultimate_ball.last_prase_ult:
-		player.shake_camera() # 触发玩家相机震动
+	if local_player.is_ultimate and local_player.ultimate_ball.last_prase_ult:
+		local_player.shake_camera() # 触发玩家相机震动
 	death_sound_player.play()
 
 # 新增：更新血条
@@ -316,7 +345,7 @@ func start_squash_effect() -> void:
 
 # 检测玩家与敌人是否接近
 func is_near() -> bool:
-	return (player.position - position).length() <= mesh.radius + player.mesh.radius + 0.5
+	return (local_player.position - position).length() <= mesh.radius + local_player.mesh.radius + 0.5
 
 func damage():
 	# 更新分数
@@ -357,18 +386,18 @@ func unwhiten():
 func random_addtion():
 	var ran_num = randf_range(1, 100)
 	if ran_num <= 5:
-		player.recover_inf.value = min(player.recover_inf.max_value, player.recover_inf.value + 1)
+		local_player.recover_inf.value = min(local_player.recover_inf.max_value, local_player.recover_inf.value + 1)
 	elif ran_num >= 15 and ran_num <= 20:
-		player.protect_inf.value = min(player.protect_inf.max_value, player.protect_inf.value + 1)
+		local_player.protect_inf.value = min(local_player.protect_inf.max_value, local_player.protect_inf.value + 1)
 	elif ran_num >= 25 and ran_num <= 30:
-		player.acc_inf.value = min(player.acc_inf.max_value, player.acc_inf.value + 1)
+		local_player.acc_inf.value = min(local_player.acc_inf.max_value, local_player.acc_inf.value + 1)
 	elif ran_num >= 35 and ran_num <= 40:
-		player.fixed_inf.value = min(player.fixed_inf.max_value, player.fixed_inf.value + 1)
+		local_player.fixed_inf.value = min(local_player.fixed_inf.max_value, local_player.fixed_inf.value + 1)
 	elif ran_num >= 45 and ran_num <= 50:
-		player.AtkAdd_inf.value = min(player.AtkAdd_inf.max_value, player.AtkAdd_inf.value + 1)
+		local_player.atk_add_inf.value = min(local_player.atk_add_inf.max_value, local_player.atk_add_inf.value + 1)
 	elif ran_num >= 55 and ran_num <= 60:
-		player.cs_inf.value = min(player.cs_inf.max_value, player.cs_inf.value + 1)
-		
+		local_player.cs_inf.value = min(local_player.cs_inf.max_value, local_player.cs_inf.value + 1)
+
 # 随机颜色函数
 func set_random_color():
 	var random_color = Color(randf(), randf(), randf()) # 完全随机 RGB

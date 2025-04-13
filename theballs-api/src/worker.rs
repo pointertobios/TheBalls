@@ -86,12 +86,13 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
 
     let mut buf = BytesMut::new();
 
+    
     while running.load(Ordering::Acquire) {
         let mut stream_guard = stream.write().await;
-        let mut client_rx = client_rx.write().await;
+        let mut client_rx_guard = client_rx.write().await;
         select! {
-            cpkg = client_rx.recv() => {
-                drop(client_rx);
+            cpkg = client_rx_guard.recv() => {
+                drop(client_rx_guard);
                 drop(stream_guard);
                 if let Some(cpkg) = cpkg {
                     stream.write().await.write_all(&cpkg.pack()?).await?;
@@ -100,7 +101,7 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
                 }
             }
             spkg = ServerPackage::from_tcp_stream(&mut *stream_guard, &mut buf) => {
-                drop(client_rx);
+                drop(client_rx_guard);
                 drop(stream_guard);
                 match spkg? {
                     Some(ServerPackage::TimeDeviation(time)) => {
@@ -119,12 +120,12 @@ pub async fn worker<A: ToSocketAddrs + Clone>(
                 }
             }
             _ = heartbeat_interval.tick() => {
-                drop(client_rx);
+                drop(client_rx_guard);
                 drop(stream_guard);
                 stream.write().await.write_all(&ClientPackage::HeartBeat.pack()?).await?;
             }
             _ = timedeviation_interval.tick() => {
-                drop(client_rx);
+                drop(client_rx_guard);
                 drop(stream_guard);
                 timedevi_tmp = SystemTime::now();
                 stream.write().await.write_all(&ClientPackage::TimeDeviation.pack()?).await?;

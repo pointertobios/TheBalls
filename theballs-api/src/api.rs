@@ -89,7 +89,7 @@ impl APIWorker {
             let running = Arc::clone(&running_ref);
             let mut world_id = 0;
             while running.load(Ordering::Acquire) {
-                let _ = worker(
+                let e = worker(
                     Arc::clone(&worker_self),
                     _host.clone(),
                     player_id,
@@ -101,6 +101,7 @@ impl APIWorker {
                     Arc::clone(&running_ref),
                 )
                 .await;
+                event!(Level::ERROR, "worker exited: {:?}", e);
                 running.store(true, Ordering::SeqCst);
                 if true_exit_ref.load(Ordering::Acquire) {
                     break;
@@ -267,11 +268,17 @@ impl APIWorker {
                     .pkg_recv(ServerPackage::EnemyEvent(EnemyEvent::None).discriminant())
                     .await
                 {
-                    Some(ServerPackage::EnemyEvent(EnemyEvent::Spawn { uuid, position, hp })) => {
+                    Some(ServerPackage::EnemyEvent(EnemyEvent::Spawn {
+                        uuid,
+                        position,
+                        hp,
+                        color,
+                    })) => {
                         call.call(&[
                             format!("{:x}", uuid).to_variant(),
                             position.to_variant(),
                             hp.to_variant(),
+                            color.to_variant(),
                         ]);
                     }
                     Some(pkg) => {

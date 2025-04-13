@@ -54,14 +54,14 @@ impl<T> DerefMut for SafePointer<T> {
 unsafe impl<T> Send for SafePointer<T> {}
 unsafe impl<T> Sync for SafePointer<T> {}
 
-pub(crate) struct APISignalsReceiver {
+pub struct APISignalsReceiver {
     pub(crate) timeout: Receiver<bool>,
     pub(crate) connection_failed: Receiver<Option<String>>,
     pub(crate) setup: Receiver<bool>,
     pub(crate) exited: Receiver<bool>,
 }
 
-pub(crate) struct APISignalsSender {
+pub struct APISignalsSender {
     pub(crate) timeout: Sender<bool>,
     pub(crate) connection_failed: Sender<Option<String>>,
     pub(crate) setup: Sender<bool>,

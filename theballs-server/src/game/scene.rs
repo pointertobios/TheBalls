@@ -90,6 +90,7 @@ impl Scene {
                             let ene = Enemy::new();
                             let uuid = ene.game_obj.uuid;
                             let pos = ene.game_obj.position;
+                            let color = ene.color;
                             selfp
                             .read()
                             .await
@@ -97,10 +98,12 @@ impl Scene {
                                 uuid,
                                 position: [pos.x as i64, pos.y as i64, pos.z as i64],
                                 hp: ene.game_obj.hp_max,
+                                color,
                             }))
                             .await?;
                             let ene = Arc::new(RwLock::new(ene));
                             selfp.write().await.objects_mut().insert(uuid, ene);
+                            event!(Level::INFO, "Enemy spawned, total {} enemies", enemy_count.load(Ordering::Acquire));
                         }
                     }
                     _ = ctrl_c() => {
@@ -123,17 +126,21 @@ impl Scene {
         self.sync_data_sender.subscribe()
     }
 
-    pub fn add_player(&mut self, id: u128, player: Arc<RwLock<Player>>) {
+    pub async fn add_player(&mut self, id: u128, player: Arc<RwLock<Player>>) {
         self.objects.insert(id, player);
-        if self
-            .objects
-            .iter()
-            .filter(|(_, v)| v.blocking_read().is_player())
-            .count()
-            >= 3
-        {
+        if self.count_player().await >= 3 {
             self.game_start = true;
         }
+    }
+
+    pub async fn count_player(&self) -> usize {
+        let mut count = 0;
+        for (_, v) in self.objects.iter() {
+            if v.read().await.is_player() {
+                count += 1;
+            }
+        }
+        count
     }
 
     pub fn objects(&self) -> &HashMap<u128, Arc<RwLock<dyn AsObject>>> {
@@ -155,7 +162,7 @@ static mut SCENE_MAP: LazyLock<RwLock<HashMap<u8, Arc<RwLock<Scene>>>>> =
 #[allow(static_mut_refs)]
 impl Scene {
     pub fn new_id() -> u8 {
-        static mut ID: u8 = 2;
+        static mut ID: u8 = 1;
         unsafe {
             let res = ID;
             ID += 1;

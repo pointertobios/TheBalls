@@ -81,6 +81,7 @@ pub enum EnemyEvent {
         uuid: u128,
         position: [i64; 3],
         hp: f64,
+        color: [f64; 3],
     },
     None,
 

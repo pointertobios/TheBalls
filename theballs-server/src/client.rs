@@ -104,8 +104,8 @@ async fn package_handle(
         ClientPackage::TimeDeviation => ServerPackage::TimeDeviation(now),
 
         ClientPackage::SceneSync { object } => {
+            let dynobj = Object::unpack_object(object.clone());
             if object.uuid == head.player_id {
-                let dynobj = Object::unpack_object(object.clone());
                 *scene
                     .objects_mut()
                     .get(&object.uuid)
@@ -113,6 +113,27 @@ async fn package_handle(
                     .write()
                     .await
                     .as_object_mut() = dynobj;
+            } else if {
+                scene
+                    .objects()
+                    .get(&head.player_id)
+                    .unwrap()
+                    .read()
+                    .await
+                    .as_player()
+                    .unwrap()
+                    .is_key_player()
+            } {
+                if let Some(enemy) = scene
+                    .objects_mut()
+                    .get(&object.uuid)
+                    .unwrap()
+                    .write()
+                    .await
+                    .as_enemy_mut()
+                {
+                    *enemy.as_object_mut() = dynobj;
+                }
             }
             ServerPackage::None
         }
@@ -155,13 +176,13 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
         return Err(anyhow!("Verify failed"));
     }
     if head.scene_id == 0 {
-        Player::add(head.player_id, head.scene_id).await;
         let scene_id = Scene::main_id();
         head.scene_id = scene_id;
+        Player::add(head.player_id, head.scene_id).await;
         let player = Player::get(head.player_id).await.unwrap();
         let scene = Scene::get(scene_id).await.unwrap();
         let mut scene = scene.write().await;
-        scene.add_player(head.player_id, player);
+        scene.add_player(head.player_id, player).await;
         drop(scene);
         let res = ServerHead {
             state: StateCode::Success,
