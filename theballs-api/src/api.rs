@@ -245,7 +245,7 @@ impl APIWorker {
                     .await
                 {
                     Some(ServerPackage::PlayerEvent(PlayerEvent::Exit(uuid))) => {
-                        call.call(&[format!("{:x}", uuid).to_variant()]);
+                        call.call(&[format!("{:032x}", uuid).to_variant()]);
                     }
                     Some(pkg) => {
                         selfp.api_recv_buffer.write().await.push(pkg);
@@ -275,7 +275,7 @@ impl APIWorker {
                         color,
                     })) => {
                         call.call(&[
-                            format!("{:x}", uuid).to_variant(),
+                            format!("{:032x}", uuid).to_variant(),
                             position.to_variant(),
                             hp.to_variant(),
                             color.to_variant(),
@@ -339,7 +339,7 @@ impl APIWorker {
                         position,
                     })) => {
                         call.call(&[
-                            format!("{:x}", uuid).to_variant(),
+                            format!("{:032x}", uuid).to_variant(),
                             name.to_variant(),
                             position.to_variant(),
                         ]);
@@ -367,13 +367,82 @@ impl APIWorker {
                 let (ids, names): (Vec<u128>, Vec<String>) = list.into_iter().unzip();
                 let ids: Array<GString> = ids
                     .into_iter()
-                    .map(|id| GString::from(format!("{:x}", id)))
+                    .map(|id| GString::from(format!("{:032x}", id)))
                     .collect();
                 let names: Array<GString> =
                     names.into_iter().map(|name| GString::from(name)).collect();
                 call.call(&[ids.to_variant(), names.to_variant()]);
             }
             event!(Level::INFO, "Exited recv_player_list")
+        });
+    }
+
+    pub fn enemy_took_damage(&mut self, uuid: u128, damage: f64, source_uuid: u128, ulti: bool) {
+        self.send(ClientPackage::EnemyEvent(EnemyEvent::TookDamage {
+            uuid,
+            damage,
+            source_uuid,
+            ulti,
+        }));
+    }
+
+    pub fn recv_enemy_took_damage(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            loop {
+                match selfp
+                    .pkg_recv(ServerPackage::EnemyEvent(EnemyEvent::None).discriminant())
+                    .await
+                {
+                    Some(ServerPackage::EnemyEvent(EnemyEvent::TookDamage {
+                        uuid,
+                        damage,
+                        source_uuid,
+                        ulti,
+                    })) => {
+                        call.call(&[
+                            format!("{:032x}", uuid).to_variant(),
+                            damage.to_variant(),
+                            format!("{:032x}", source_uuid).to_variant(),
+                            ulti.to_variant(),
+                        ]);
+                    }
+                    Some(pkg) => {
+                        selfp.api_recv_buffer.write().await.push(pkg);
+                        selfp.recv_notifier.read().await.send(())?;
+                    }
+                    None => break,
+                }
+            }
+            Ok(())
+        });
+    }
+
+    pub fn enemy_die(&mut self, uuid: u128) {
+        self.send(ClientPackage::EnemyEvent(EnemyEvent::Die { uuid }));
+    }
+
+    pub fn recv_enemy_die(&mut self, call: SafeCallable) {
+        let selfp = SafePointer(self as *mut APIWorker);
+        self._tokio_rt.spawn(async move {
+            let mut selfp = selfp;
+            loop {
+                match selfp
+                    .pkg_recv(ServerPackage::EnemyEvent(EnemyEvent::None).discriminant())
+                    .await
+                {
+                    Some(ServerPackage::EnemyEvent(EnemyEvent::Die { uuid })) => {
+                        call.call(&[format!("{:032x}", uuid).to_variant()]);
+                    }
+                    Some(pkg) => {
+                        selfp.api_recv_buffer.write().await.push(pkg);
+                        selfp.recv_notifier.read().await.send(())?;
+                    }
+                    None => break,
+                }
+            }
+            Ok(())
         });
     }
 }
@@ -513,5 +582,34 @@ impl TheBallsWorker {
     fn recv_enemy_spawn(&mut self, call: Callable) {
         let call: SafeCallable = SafeCallable::new(call);
         self.worker.blocking_write().recv_enemy_spawn(call);
+    }
+
+    #[func]
+    fn enemy_took_damage(&mut self, uuid: GString, damage: f64, source_uuid: GString, ulti: bool) {
+        self.worker.blocking_write().enemy_took_damage(
+            u128::from_str_radix(&uuid.to_string(), 16).unwrap(),
+            damage,
+            u128::from_str_radix(&source_uuid.to_string(), 16).unwrap(),
+            ulti,
+        );
+    }
+
+    #[func]
+    fn recv_enemy_took_damage(&mut self, call: Callable) {
+        let call: SafeCallable = SafeCallable::new(call);
+        self.worker.blocking_write().recv_enemy_took_damage(call);
+    }
+
+    #[func]
+    fn enemy_die(&mut self, uuid: GString) {
+        self.worker
+            .blocking_write()
+            .enemy_die(u128::from_str_radix(&uuid.to_string(), 16).unwrap());
+    }
+
+    #[func]
+    fn recv_enemy_die(&mut self, call: Callable) {
+        let call: SafeCallable = SafeCallable::new(call);
+        self.worker.blocking_write().recv_enemy_die(call);
     }
 }

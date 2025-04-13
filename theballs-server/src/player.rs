@@ -130,9 +130,10 @@ impl Player {
         let scene = Scene::get(p.read().await.scene_id).await.unwrap();
         if p.read().await.is_key_player() {
             // 重新选择第一个被迭代到的player指定其为key player
-            for (_, p) in map.iter_mut() {
+            for (uuid, p) in map.iter_mut() {
                 if p.read().await.is_key_player() {
                     p.write().await.key = true;
+                    event!(Level::INFO, "\nAssign new key player: {}", *uuid);
                     break;
                 }
             }

@@ -83,6 +83,15 @@ pub enum EnemyEvent {
         hp: f64,
         color: [f64; 3],
     },
+    TookDamage {
+        uuid: u128,
+        damage: f64,
+        source_uuid: u128,
+        ulti: bool,
+    },
+    Die {
+        uuid: u128,
+    },
     None,
 
 }

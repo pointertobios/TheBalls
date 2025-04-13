@@ -72,7 +72,7 @@ pub struct ObjectPack {
 impl ObjectPack {
     pub fn to_variant(&self) -> VariantArray {
         varray![
-            format!("{:x}", self.uuid).to_variant(),
+            format!("{:032x}", self.uuid).to_variant(),
             self.is_player,
             self.radius,
             self.position.to_variant(),

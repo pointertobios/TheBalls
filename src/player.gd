@@ -63,7 +63,7 @@ var current_camera_view: int = 0 # 当前视角索引
 @onready var game: Game = $".."
 
 # 暴击率/暴击伤害
-var ATK: int = 20
+var ATK: float = 20
 var cri_ch: float = 50
 var cri_hit: float = 150
 var ulti_mult: float = 10
@@ -159,7 +159,7 @@ func _process(_delta: float) -> void:
 		skillofE.count -= 1
 		is_skill = true
 		skill_timer = 0.2
-		for enemy in enemies:
+		for enemy in enemies.values():
 			enemy.is_attack_by_skill = false
 		enable_glow(Color(0, 0.5019, 1), 0.5)
 		skill_emitting()

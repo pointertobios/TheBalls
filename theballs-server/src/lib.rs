@@ -78,7 +78,10 @@ pub async fn run(config: Config) -> Result<()> {
                 let running = Arc::clone(&running);
                 let scene_sync_rx = scene.read().await.subscribe_receiver();
                 let jh = task::spawn(async move {
-                    handle(stream, socket_addr, running, scene_sync_rx).await
+                    if let Err(e) = handle(stream, socket_addr, running, scene_sync_rx).await {
+                        event!(Level::ERROR, "Client service error: {}", e);
+                    }
+                    Ok(())
                 });
                 jh_list.push(jh);
             }

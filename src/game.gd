@@ -114,7 +114,17 @@ func game_start():
 			hp,
 			Color(color[0], color[1], color[2]))
 	)
-
+	worker.recv_enemy_took_damage(func(uuid, damage, source_uuid, ulti):
+		if ulti:
+			enemy_list[uuid].take_ulti_damage(damage, player_list[source_uuid])
+		else:
+			enemy_list[uuid].take_damage(damage, player_list[source_uuid])
+	)
+	worker.recv_enemy_die(func(uuid):
+		enemy_list[uuid].die()
+		enemy_list[uuid].queue_free()
+		enemy_list.erase(uuid)
+	)
 
 func _ready() -> void:
 	# 初始化计时器

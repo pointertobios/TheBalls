@@ -119,7 +119,7 @@ pub(crate) fn api_signal_channel(buffer: usize) -> (APISignalsSender, APISignals
 
 fn logging_init() {
     let subscriber = tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         .pretty()
         .with_ansi(true)
         .with_thread_names(true)

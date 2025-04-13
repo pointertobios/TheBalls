@@ -255,14 +255,16 @@ func _physics_process(delta: float) -> void:
 		if !is_ultimate_attack:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
-			take_ulti_damage(local_player.ATK * local_player.ulti_mult, local_player) # 开大时造成更高伤害
+			# take_ulti_damage(local_player.ATK * local_player.ulti_mult, local_player) # 开大时造成更高伤害
+			game.worker.enemy_took_damage(uuid, local_player.ATK * local_player.ulti_mult, local_player.uuid, true)
 			is_ultimate_attack = true
 	elif not is_hidden and local_player.is_skill_emitting() and (Vector3(local_player.position.x, 0, local_player.position.z) - position).length() <= \
 	skill.collision_radius and not is_attack_by_skill:
 		$Die.emitting = true
 		$Die.set_radial_acceleration(10)
 		local_player.skill_emitting()
-		take_damage(local_player.ATK * local_player.skill_mult, local_player) # 技能造成伤害
+		# take_damage(local_player.ATK * local_player.skill_mult, local_player) # 技能造成伤害
+		game.worker.enemy_took_damage(uuid, local_player.ATK * local_player.skill_mult, local_player.uuid, false)
 		is_attack_by_skill = true
 	elif not is_hidden and is_near():
 		if local_player.gravity.charging and local_player.position.y > position.y:
@@ -271,7 +273,8 @@ func _physics_process(delta: float) -> void:
 			$Die.emitting = true
 			$Die.set_radial_acceleration(10)
 			await get_tree().create_timer(0.2).timeout # 等待压扁动画完成
-			take_damage(local_player.ATK, local_player) # 普通撞击伤害
+			# take_damage(local_player.ATK, local_player) # 普通撞击伤害
+			game.worker.enemy_took_damage(uuid, local_player.ATK, local_player.uuid, false)
 		elif can_damage_player and not collshape.disabled:
 			# 扣除玩家血量
 			if not local_player.shield.is_safe:
@@ -290,7 +293,8 @@ func take_damage(damage_val: float, player: BallPlayer) -> void:
 	game.add_child(damage_digital)
 	health -= damage_val
 	if health <= 0:
-		die() # 调用 die 函数
+		# die() # 调用 die 函数
+		game.worker.enemy_die(uuid)
 	update_health_bar()
 	meshi.material_override.set_shader_parameter("hit_blend", 0.5) # 变红
 	hit_timer.start(0.4) # 0.4秒后恢复
@@ -309,7 +313,8 @@ func take_ulti_damage(damage_val: float, player: BallPlayer) -> void:
 		var recover = DamageText.new(-dying_player_recover, player.position, false)
 		game.add_child(recover)
 		player.balance_blood()
-		die() # 调用 die 函数
+		# die() # 调用 die 函数
+		game.worker.enemy_die(uuid)
 	update_health_bar()
 	meshi.material_override.set_shader_parameter("hit_blend", 0.5) # 变红
 	# emit_signal("took_damage") # 发出受伤信号

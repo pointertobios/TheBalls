@@ -12,7 +12,7 @@ use bincode::{deserialize, serialize};
 use bytes::BytesMut;
 use theballs_protocol::{
     client::{ClientHead, ClientPackage},
-    server::{PlayerEvent, ServerHead, ServerPackage, StateCode},
+    server::{EnemyEvent, PlayerEvent, ServerHead, ServerPackage, StateCode},
     FromTcpStream, Pack, PackObject, HEARTBEAT_DURATION,
 };
 use tokio::{
@@ -163,6 +163,34 @@ async fn package_handle(
 
             _ => ServerPackage::None,
         },
+
+        ClientPackage::EnemyEvent(event) => match event {
+            EnemyEvent::TookDamage {
+                uuid,
+                damage,
+                source_uuid,
+                ulti,
+            } => {
+                scene
+                    .broadcast(ServerPackage::EnemyEvent(EnemyEvent::TookDamage {
+                        uuid,
+                        damage,
+                        source_uuid,
+                        ulti,
+                    }))
+                    .await?;
+                ServerPackage::None
+            }
+            EnemyEvent::Die { uuid } => {
+                scene.objects_mut().remove(&uuid);
+                scene
+                    .broadcast(ServerPackage::EnemyEvent(EnemyEvent::Die { uuid }))
+                    .await?;
+                ServerPackage::None
+            }
+            _ => ServerPackage::None,
+        },
+
         _ => ServerPackage::None,
     };
     Ok(Some(spkg))
@@ -192,8 +220,8 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
         let res = serialize(&res)?;
         stream.write_all(&res).await?;
     } else {
-        let world = if let Some(world) = Scene::get(head.scene_id).await {
-            world
+        let scene = if let Some(scene) = Scene::get(head.scene_id).await {
+            scene
         } else {
             let res_ = ServerHead {
                 state: StateCode::NoSceneId,
@@ -205,7 +233,7 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
             event!(Level::TRACE, ?head.player_id, "\n{:?}", res_);
             return Err(anyhow!("No world id"));
         };
-        let world = world.write().await;
+        let scene = scene.write().await;
         if let None = Player::get(head.player_id).await {
             let res_ = ServerHead {
                 state: StateCode::NoPlayerId,
@@ -217,7 +245,7 @@ async fn headers_exchange(stream: &mut TcpStream) -> Result<ClientHead> {
             event!(Level::TRACE, ?head.player_id, "\n{:?}", res_);
             return Err(anyhow!("No player id"));
         };
-        if let None = world.objects().get(&head.player_id) {
+        if let None = scene.objects().get(&head.player_id) {
             let res_ = ServerHead {
                 state: StateCode::PlayerIdNotFoundInScene,
                 scene_id: head.scene_id,
