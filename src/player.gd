@@ -212,9 +212,9 @@ func _physics_process(delta: float) -> void:
 	var tmp_velocity = Vector3(velocity)
 
 	var v = composited_velocity().length()
-	if  v < 0.04 and $MeshInstance3D/GPUParticles3D.emitting:
+	if  v < 0.1 and $MeshInstance3D/GPUParticles3D.emitting:
 		$MeshInstance3D/GPUParticles3D.emitting = false
-	if not $MeshInstance3D/GPUParticles3D.emitting and v >= 0.04:
+	if not $MeshInstance3D/GPUParticles3D.emitting and v >= 0.1:
 		$MeshInstance3D/GPUParticles3D.emitting = true
 	if is_hit:
 		hit_timer -= delta

@@ -8,13 +8,9 @@ extends Node2D
 @onready var waiting_label = $UI/WaitingPanel/Label
 @onready var title = $UI/Background/Label
 
-var server_api: ServerAPI
 var player_uuid: String = ""
 
 func _ready():
-	server_api = ServerAPI.new()
-	add_child(server_api)
-	server_api.ready_to_start.connect(_start_game)
 	# 初始化UI状态
 	start_button.visible = true
 	nickname_input.visible = false
@@ -23,7 +19,6 @@ func _ready():
 	# 连接信号
 	start_button.pressed.connect(_on_start_pressed)
 	nickname_input.text_submitted.connect(_on_nickname_submitted)
-	server_api.playerevent(_update_waiting_ui)
 	
 	# 设置UI样式
 	_setup_ui_style()
@@ -64,11 +59,11 @@ func _on_nickname_submitted(nickname: String):
 	
 	player_uuid = nickname.md5_text()
 	print(player_uuid)
-	server_api.register_player(player_uuid, nickname)
 	
 	nickname_input.visible = false
 	waiting_panel.visible = true
 	waiting_label.text = "等待玩家加入 (1/3)..."
+	_start_game()
 
 func _update_waiting_ui(msg: String):
 	waiting_label.text = msg
