@@ -126,19 +126,24 @@ impl Player {
 
     pub async fn exit(id: u128) {
         let mut map = PLAYER_MAP.write().await;
-        let p = map.remove(&id).unwrap();
-        let scene = Scene::get(p.read().await.scene_id).await.unwrap();
-        if p.read().await.is_key_player() {
-            // 重新选择第一个被迭代到的player指定其为key player
-            for (uuid, p) in map.iter_mut() {
-                if p.read().await.is_key_player() {
+        if let Some(p) = map.remove(&id) {
+            let scene = Scene::get(p.read().await.scene_id).await.unwrap();
+            scene.write().await.remove(id);
+            if p.read().await.is_key_player() {
+                // 重新选择第一个被迭代到的player指定其为key player
+                for (uuid, p) in map.iter_mut() {
                     p.write().await.key = true;
                     event!(Level::INFO, "\nAssign new key player: {}", *uuid);
                     break;
                 }
             }
+        } else {
+            for (uuid, p) in map.iter_mut() {
+                p.write().await.key = true;
+                event!(Level::INFO, "\nAssign new key player: {}", *uuid);
+                break;
+            }
         }
-        scene.write().await.remove(id);
     }
 
     pub async fn list() -> Vec<(u128, String)> {

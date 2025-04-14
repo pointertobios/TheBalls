@@ -10,6 +10,7 @@ use std::sync::{
 
 use anyhow::{Ok, Result};
 use game::scene::Scene;
+use player::Player;
 use tokio::{
     net::TcpListener,
     select,
@@ -80,6 +81,7 @@ pub async fn run(config: Config) -> Result<()> {
                 let jh = task::spawn(async move {
                     if let Err(e) = handle(stream, socket_addr, running, scene_sync_rx).await {
                         event!(Level::ERROR, "Client service error: {}", e);
+                        Player::exit(0).await;
                     }
                     Ok(())
                 });

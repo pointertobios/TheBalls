@@ -139,6 +139,7 @@ func _ready() -> void:
 	health_bar = HealthBar.new()
 	health_bar.max_length = mesh.radius # 血条长度与敌人大小相关
 	health_bar.centered = true
+	health_bar.camera = local_player.camera
 	get_tree().root.add_child(health_bar) # 将血条添加到敌人节点
 
 func _process(_delta: float) -> void:

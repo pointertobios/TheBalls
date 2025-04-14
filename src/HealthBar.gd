@@ -6,11 +6,12 @@ class_name HealthBar
 @export var max_length: float = 1.0
 # 血条的颜色
 @export var color: Color = Color(1, 0, 0, 1)  # 默认红色
-
+var camera: Camera3D
 # 材质实例
 var material: StandardMaterial3D
 # 摄像机引用
-@onready var camera: Camera3D = get_node("/root/Node3D/Player/Camera3D")
+#@onready var camera: Camera3D = get_node("/root/Node3D/Player/Camera3D")
+
 # 敌人引用
 @export var enemy: Node3D  # 通过 Inspector 设置敌人的引用
 
