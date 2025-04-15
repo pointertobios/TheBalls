@@ -286,7 +286,7 @@ func take_ulti_damage(damage: float) -> void:
 		die()  # 调用 die 函数
 	update_health_bar()
 	meshi.material_override.set_shader_parameter("hit_blend", 0.5)  # 变红
-	emit_signal("took_damage")  # 发出受伤信号
+	#emit_signal("took_damage")  # 发出受伤信号
 	hit_timer.start(0.4)  # 0.4秒后恢复
 
 # 新增：敌人死亡
