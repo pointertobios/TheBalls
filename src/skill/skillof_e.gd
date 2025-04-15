@@ -13,6 +13,7 @@ class_name skillofe
 ]
 @onready var SkillOfEProcessl: TextureProgressBar = $Control/TextureProgressBar
 
+
 # 尖刺动画参数
 var spike_move_distance: float = 100.0  # 尖刺移动的距离
 var spike_move_duration: float = 0.5   # 尖刺移动的时长

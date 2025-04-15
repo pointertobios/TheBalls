@@ -1,13 +1,15 @@
-[gd_scene load_steps=25 format=3 uid="uid://b74hbui2nt53"]
+[gd_scene load_steps=27 format=3 uid="uid://b74hbui2nt53"]
 
-[ext_resource type="Shader" uid="uid://1hqpsx1y321c" path="res://shader/player.gdshader" id="1_hjaqi"]
-[ext_resource type="Texture2D" uid="uid://bujpnviq52gmo" path="res://asset/tail.png" id="2_fvtld"]
-[ext_resource type="Script" uid="uid://dpibfxe5adubj" path="res://src/player_particle.gd" id="2_hjaqi"]
-[ext_resource type="Script" uid="uid://bfu5iw74nllnj" path="res://src/hit.gd" id="4_ct4mp"]
-[ext_resource type="Script" uid="uid://bq8bxgy1purue" path="res://src/skill.gd" id="5_s4jxa"]
-[ext_resource type="AudioStream" uid="uid://by74nxapv3pc8" path="res://asset/1.mp3" id="6_g2vtq"]
-[ext_resource type="AudioStream" uid="uid://rjt87mse6eiq" path="res://asset/2.MP3" id="7_2fvbb"]
-[ext_resource type="AudioStream" uid="uid://dtmyjk52fh6vw" path="res://asset/3.mp3" id="8_ml7e8"]
+[ext_resource type="Shader" uid="uid://dkibp2pnj18pj" path="res://shader/player.gdshader" id="1_hjaqi"]
+[ext_resource type="Texture2D" uid="uid://xyavjpjermn1" path="res://asset/tail.png" id="2_fvtld"]
+[ext_resource type="Script" uid="uid://brtt1eh8s2s50" path="res://src/player_particle.gd" id="2_hjaqi"]
+[ext_resource type="Script" uid="uid://wtr178p6dequ" path="res://src/hit.gd" id="4_ct4mp"]
+[ext_resource type="Script" uid="uid://0b5yxb0w35kg" path="res://src/skill.gd" id="5_s4jxa"]
+[ext_resource type="AudioStream" uid="uid://djjbujidu5boy" path="res://asset/1.mp3" id="6_g2vtq"]
+[ext_resource type="AudioStream" uid="uid://dk5imccdqlyut" path="res://asset/2.MP3" id="7_2fvbb"]
+[ext_resource type="AudioStream" uid="uid://ds28p47c14xmx" path="res://asset/3.mp3" id="8_ml7e8"]
+[ext_resource type="AudioStream" uid="uid://kpcevcg7b5hp" path="res://asset/地刺.mp3" id="9_ml7e8"]
+[ext_resource type="AudioStream" uid="uid://dgrjcihhq5ny6" path="res://asset/传送音效.mp3" id="10_ihjo1"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_s4jxa"]
 
@@ -133,3 +135,9 @@ volume_db = 10.0
 [node name="ThirdOfSkill" type="AudioStreamPlayer3D" parent="."]
 stream = ExtResource("8_ml7e8")
 volume_db = 10.0
+
+[node name="SkillOfE1" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("9_ml7e8")
+
+[node name="Blink" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("10_ihjo1")

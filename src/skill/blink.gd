@@ -15,6 +15,7 @@ var indicator: MeshInstance3D
 var is_active := false
 var screen_shader: ShaderMaterial
 var afterimages := []
+@onready var playmusic: AudioStreamPlayer3D = $"../Blink" 
 
 func _init(p: BallPlayer) -> void:
 	player = p
@@ -84,6 +85,7 @@ func perform_blink():
 	generate_path_afterimages(player.position, target_position)
 	
 	# 执行闪现
+	playmusic.play()
 	player.global_position = target_position
 	player.velocity = Vector3.ZERO  # 重置速度
 

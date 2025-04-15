@@ -15,6 +15,7 @@ var default_player_height = 1.0
 @export var base_damage: float = 20.0
 @export var ultimate_damage_multiplier: float = 2.0
 
+
 func get_damage() -> float:
 	if player.is_ultimate:
 		return base_damage * ultimate_damage_multiplier

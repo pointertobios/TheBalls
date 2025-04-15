@@ -14,7 +14,8 @@ class_name BallPlayer
 @onready var skill_e: skillofe = get_node("../skillofE")
 @onready var skillofE: skillofe = get_node("../skillofE")
 @onready var skillofEProcess: TextureProgressBar = get_node("../skillofE/Control/TextureProgressBar")
-
+@onready var playmusic: AudioStreamPlayer3D = $"../Player/SkillOfE" 
+@onready var musicofe: AudioStreamPlayer3D = $"../Player/SkillOfE1" 
 @onready var mesh: SphereMesh = meshi.mesh as SphereMesh
 @onready var gravity = Gravity.new(9.8, mesh.radius, 0.5)
 @onready var enemies = ($".." as Game).enemy_list
@@ -225,6 +226,7 @@ func _physics_process(delta: float) -> void:
 			is_hit = false
 			$Hit.emitting = false
 	if is_skill and is_hit:
+		musicofe.play()
 		if skill_timer == 0.2:
 			$Skill.emitting = true
 			is_skill = false
